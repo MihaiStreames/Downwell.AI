@@ -1,14 +1,10 @@
 import time
-import pyautogui
 import cv2 as cv
 import numpy as np
+import pyautogui
 import pygetwindow as gw
 
-from imageProcessing import (
-    extract_hp,
-    killed_enemies,
-    shop_side_room,
-)
+from imageProcessing import (extract_hp, killed_enemies, shop_side_room)
 
 class CustomDownwellEnvironment:
     def __init__(self):
