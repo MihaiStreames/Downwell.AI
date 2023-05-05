@@ -24,35 +24,22 @@ def extract_hp(screen):
 
     return hp
 
-def killed_enemies(screen):
-    #enemy_templates = load_enemy_templates()
+def find_player(screen, templates):
+    screen_gray = cv.cvtColor(screen, cv.COLOR_BGR2GRAY)
+    max_val = -1
+    max_loc = None
+    best_template = None
 
-    killed_enemies = 0
-    #for enemy_template in enemy_templates:
-    #    matches = template_matches(screen, enemy_template)
-    #    killed_enemies += len(matches)
+    for template in templates:
+        result = cv.matchTemplate(screen_gray, template, cv.TM_CCOEFF_NORMED)
+        min_val, max_val_current, _, max_loc_current = cv.minMaxLoc(result)
 
-    return killed_enemies
+        if max_val_current > max_val:
+            max_val = max_val_current
+            max_loc = max_loc_current
+            best_template = template
 
-def template_matches(screen, enemy_template):
-    pass
+    top_left = max_loc
+    bottom_right = (top_left[0] + best_template.shape[1], top_left[1] + best_template.shape[0])
 
-def shop_side_room(screen):
-    #shop_template = load_shop_template()
-    #side_room_template = load_side_room_template()
-
-    #shop_matches = template_matches(screen, shop_template)
-    #side_room_matches = template_matches(screen, side_room_template)
-
-    #return len(shop_matches) > 0 or len(side_room_matches) > 0
-    pass
-
-# Loaders
-def load_shop_template():
-    pass
-
-def load_side_room_template():
-    pass
-
-def load_enemy_templates():
-    pass
+    return top_left, bottom_right

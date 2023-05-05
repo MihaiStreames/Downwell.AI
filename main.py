@@ -10,6 +10,7 @@ def main():
         state = game_env.reset()
         done = False
 
+        total_reward = 0
         while not done:
             action = ai_agent.choose_action(state)
 
@@ -19,7 +20,9 @@ def main():
             state = next_state
             ai_agent.learn()
 
-        print(f"Episode {episode + 1}/{n_episodes} completed.")
+            total_reward += reward
+
+        print(f"Episode {episode + 1}/{n_episodes} completed. Total reward: {total_reward}")
 
     ai_agent.save("downwell_ai_agent.h5")
 
