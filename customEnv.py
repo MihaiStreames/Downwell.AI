@@ -66,12 +66,12 @@ class CustomDownwellEnvironment:
     def game_info(self, screen):
         hp = extract_hp(screen)
         killed = killed_enemies(screen)
-        shop_side = shop_side_room(screen)
+        side_room = shop_side_room(screen)
 
-        return hp, killed, shop_side
+        return hp, killed, side_room
 
     def calculate(self, screen):
-        hp, killed_enemies, shop_side = self.game_info(screen)
+        hp, killed, side_room = self.game_info(screen)
 
         reward = 0
         done = False
@@ -80,7 +80,7 @@ class CustomDownwellEnvironment:
         # ...
 
         # Implement the constraint to avoid entering shops or side rooms
-        if shop_side:
+        if side_room:
             reward = -1000
 
         # Check if the game is over (HP reaches 0)

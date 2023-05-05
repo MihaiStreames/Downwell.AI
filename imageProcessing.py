@@ -1,7 +1,10 @@
 import pytesseract
 import cv2 as cv
 
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# -------PATHS---------
+path = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+pytesseract.pytesseract.tesseract_cmd = path
+# ---------------------
 
 def extract_hp(screen):
     vals = {'44': 4, '34': 3, '5': 2, '14': 1}
