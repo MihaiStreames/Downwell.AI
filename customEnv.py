@@ -1,4 +1,3 @@
-import os
 import time
 import cv2 as cv
 import numpy as np
@@ -6,15 +5,6 @@ import pyautogui
 import pygetwindow as gw
 
 from imageProcessing import extract_info
-
-# -------PATHS---------
-dir = os.path.dirname(__file__)
-standing_path = os.path.join(dir, 'templates', 'standing.png')
-jumping_path = os.path.join(dir, 'templates', 'jumping.png')
-
-standing = cv.imread(standing_path, 0)
-jumping = cv.imread(jumping_path, 0)
-# ---------------------
 
 class CustomDownwellEnvironment:
     def __init__(self):
