@@ -4,7 +4,7 @@ import numpy as np
 import pyautogui
 import pygetwindow as gw
 
-from imageProcessing import extract_info
+from imageProcessing import *
 
 class CustomDownwellEnvironment:
     def __init__(self):
