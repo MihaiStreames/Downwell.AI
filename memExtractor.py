@@ -1,5 +1,5 @@
 from pymem.process import *
-import time
+
 
 class Player:
     def __init__(self, pc, gameModule):
@@ -15,11 +15,13 @@ class Player:
             "combo": {"base": 0x00757C80, "offsets": [0x168, 0x160, 0x8, 0x8, 0x50, 0x108, 0x2C0], "type": "double"}
         }
 
-    def getPointerAddress(self, base, offsets):
+    def isGemHigh(self):
+        return self.getValue('gemHigh') >= 100
+
+    def getPtrAddr(self, base, offsets):
         addr = self.pc.read_int(base)
         for i in offsets[:-1]:
             addr = self.pc.read_int(addr + i)
-
         return addr + offsets[-1]
 
     def getType(self, type, address):
@@ -32,33 +34,9 @@ class Player:
         if attribute == 'ammo':
             for i in range(len(self.attributes[attribute]["bases"])):
                 try:
-                    return self.getType(self.attributes[attribute]["type"], self.getPointerAddress(self.gameModule + self.attributes[attribute]["bases"][i], self.attributes[attribute]["offsets"][i])), i
+                    return self.getType(self.attributes[attribute]["type"], self.getPtrAddr(self.gameModule + self.attributes[attribute]["bases"][i], self.attributes[attribute]["offsets"][i])), i
                 except pymem.exception.MemoryReadError:
                     continue
             print("Error: Ammo not found")
         else:
-            return self.getType(self.attributes[attribute]["type"], self.getPointerAddress(self.gameModule + self.attributes[attribute]["base"], self.attributes[attribute]["offsets"]))
-
-    def isGemHigh(self):
-        return self.getValue('gemHigh') >= 100
-
-if __name__ == "__main__":
-    pc = pymem.Pymem("downwell.exe")
-    gameModule = module_from_name(pc.process_handle, "downwell.exe").lpBaseOfDll
-    player = Player(pc, gameModule)
-
-    while True:
-        try:
-            print("Y: " + str(player.getValue('ypos')) + " | X: " + str(player.getValue('xpos')))
-            print("HP: " + str(player.getValue('hp')) + " | ", end="")
-            print("Gems: " + str(player.getValue('gems')) + " | ", end="")
-            print("Ammo: " + str(player.getValue('ammo')) + " | ", end="")
-            print("Gem Combo: " + str(player.getValue('gemHigh')) + " / Gem High: " + str(player.isGemHigh()) + " | ", end="")
-            print("Current Combo: " + str(player.getValue('combo')))
-
-            time.sleep(1)
-
-        except pymem.exception.MemoryReadError as e:
-            print("Error: " + str(e))
-            time.sleep(5)
-            continue
+            return self.getType(self.attributes[attribute]["type"], self.getPtrAddr(self.gameModule + self.attributes[attribute]["base"], self.attributes[attribute]["offsets"]))
