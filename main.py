@@ -19,13 +19,13 @@ def main():
     # TODO: Agent initialization
 
     while True:
-        done = gameEnv.isGameOver(player)
+        done = gameEnv.is_game_over(player)
         if not done:
-            print(f'X: {player.getValue("xpos")} | Y: {player.getValue("ypos")}')
-            print(f'Health: {player.getValue("hp")}', end="")
-            print(f' | Ammo: {player.getValue("ammo")[0]}', end="")
-            print(f' | Gems: {player.getValue("gems")} / Gem High: {player.isGemHigh()}', end="")
-            print(f' | Gem Combo: {player.getValue("gemHigh")} / Current Combo: {player.getValue("combo")}')
+            print(f'X: {player.get_value("xpos")} | Y: {player.get_value("ypos")}')
+            print(f'Health: {player.get_value("hp")}', end="")
+            print(f' | Ammo: {player.get_value("ammo")[0]}', end="")
+            print(f' | Gems: {player.get_value("gems")} / Gem High: {player.is_gem_high()}', end="")
+            print(f' | Gem Combo: {player.get_value("gemHigh")} / Current Combo: {player.get_value("combo")}')
             time.sleep(1)
 
         # TODO: Agent training

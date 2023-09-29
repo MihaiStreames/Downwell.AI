@@ -14,20 +14,20 @@ class CustomDownwellEnvironment:
         self.prevX = 0
         self.prevY = 0
 
-    def windowExists(self):
+    def window_exists(self):
         self.gameWindow = gw.getWindowsWithTitle('Downwell')[1]
 
-    def getGameWindowDimensions(self):
+    def get_game_window_dimensions(self):
         if self.gameWindow is None:
-            self.windowExists()
+            self.window_exists()
         return self.gameWindow.left, self.gameWindow.top, self.gameWindow.width, self.gameWindow.height
 
-    def isGameOver(self, player):
-        return player.getValue('hp') == 0
+    def is_game_over(self, player):
+        return player.get_value('hp') == 0
 
     def reset(self, player):  # Whenever launching the bot, restart the game
         if not self.gameWindow:
-            self.windowExists()
+            self.window_exists()
         self.gameWindow.activate()
 
         time.sleep(0.5)
@@ -41,24 +41,24 @@ class CustomDownwellEnvironment:
         pyautogui.press('space')
         time.sleep(1)
 
-        if self.isGameOver(player):
+        if self.is_game_over(player):
             time.sleep(10)
             pyautogui.press('space')
 
-    def calculateReward(self, player):
+    def calculate_reward(self, player):
         reward = 0
 
-        if player.getValue('hp') > 0:
-            reward += player.getValue('hp') * self.multipliers[0]
-        if player.isGemHigh():
+        if player.get_value('hp') > 0:
+            reward += player.get_value('hp') * self.multipliers[0]
+        if player.is_gem_high():
             reward += self.multipliers[1]
-        reward += player.getValue('combo') * self.multipliers[2]
+        reward += player.get_value('combo') * self.multipliers[2]
 
-        if player.getValue('xpos') == self.prevX and player.getValue('ypos') == self.prevY:
+        if player.get_value('xpos') == self.prevX and player.get_value('ypos') == self.prevY:
             reward -= self.multipliers[3]
         else:
-            self.prevX = player.getValue('xpos')
-            self.prevY = player.getValue('ypos')
+            self.prevX = player.get_value('xpos')
+            self.prevY = player.get_value('ypos')
 
         return reward
 
@@ -75,8 +75,8 @@ class CustomDownwellEnvironment:
 
         time.sleep(0.1)
 
-        nextState = self.getState()
-        reward = self.calculateReward(player)
+        nextState = self.get_state()
+        reward = self.calculate_reward(player)
 
-        done = self.isGameOver(player)
+        done = self.is_game_over(player)
         return nextState, reward, done

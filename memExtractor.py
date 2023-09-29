@@ -15,28 +15,28 @@ class Player:
             "combo": {"base": 0x00757C80, "offsets": [0x168, 0x160, 0x8, 0x8, 0x50, 0x108, 0x2C0], "type": "double"}
         }
 
-    def isGemHigh(self):
-        return self.getValue('gemHigh') >= 100
+    def is_gem_high(self):
+        return self.get_value('gemHigh') >= 100
 
-    def getPtrAddr(self, base, offsets):
+    def get_ptr_addr(self, base, offsets):
         addr = self.pc.read_int(base)
         for i in offsets[:-1]:
             addr = self.pc.read_int(addr + i)
         return addr + offsets[-1]
 
-    def getType(self, type, address):
+    def get_type(self, type, address):
         if type == 'double':
             return self.pc.read_double(address)
         elif type == 'float':
             return self.pc.read_float(address)
 
-    def getValue(self, attribute):
+    def get_value(self, attribute):
         if attribute == 'ammo':
             for i in range(len(self.attributes[attribute]["bases"])):
                 try:
-                    return self.getType(self.attributes[attribute]["type"], self.getPtrAddr(self.gameModule + self.attributes[attribute]["bases"][i], self.attributes[attribute]["offsets"][i])), i
+                    return self.get_type(self.attributes[attribute]["type"], self.get_ptr_addr(self.gameModule + self.attributes[attribute]["bases"][i], self.attributes[attribute]["offsets"][i])), i
                 except pymem.exception.MemoryReadError:
                     continue
             print("Error: Ammo not found")
         else:
-            return self.getType(self.attributes[attribute]["type"], self.getPtrAddr(self.gameModule + self.attributes[attribute]["base"], self.attributes[attribute]["offsets"]))
+            return self.get_type(self.attributes[attribute]["type"], self.get_ptr_addr(self.gameModule + self.attributes[attribute]["base"], self.attributes[attribute]["offsets"]))
