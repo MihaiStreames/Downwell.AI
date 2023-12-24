@@ -1,15 +1,36 @@
-from memExtractor import Player
-from customEnv import CustomDownwellEnvironment
-from agent import DQNAgent
+from src.mem_extractor import Player
+from src.custom_env import CustomDownwellEnvironment
 
 from pymem.process import *
-
+import platform
 import time
 
 
+def get_game_module(proc, executable_name):
+    try:
+        return module_from_name(proc.process_handle, executable_name).lpBaseOfDll
+    except Exception as e:
+        print(f"Error finding module '{executable_name}': {str(e)}")
+        raise
+
+
 def main():
-    proc = pymem.Pymem("downwell.exe")
-    gameModule = module_from_name(proc.process_handle, "downwell.exe").lpBaseOfDll
+    os_type = platform.system()
+
+    # Define the executable name based on OS
+    executable_name = "downwell.exe" if os_type == "Windows" else "downwell_linux_executable"
+
+    try:
+        proc = pymem.Pymem(executable_name)
+    except Exception as e:
+        print(f"Error opening process '{executable_name}': {str(e)}")
+        return
+
+    try:
+        gameModule = get_game_module(proc, executable_name)
+    except Exception:
+        return
+
     player = Player(proc, gameModule)
 
     gameEnv = CustomDownwellEnvironment()

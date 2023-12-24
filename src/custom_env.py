@@ -1,7 +1,6 @@
 import time
 import pyautogui
 import pygetwindow as gw
-import numpy as np
 
 
 class CustomDownwellEnvironment:
@@ -21,6 +20,9 @@ class CustomDownwellEnvironment:
         if self.gameWindow is None:
             self.window_exists()
         return self.gameWindow.left, self.gameWindow.top, self.gameWindow.width, self.gameWindow.height
+
+    def get_state(self):
+        raise NotImplementedError("get_state() not implemented")
 
     def is_game_over(self, player):
         return player.get_value('hp') == 0
