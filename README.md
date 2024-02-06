@@ -2,7 +2,7 @@
 
 - Make the AI learn via gameplay - the main goal is to reach the bottom
 - Define what the bottom is
-- Learn by playing and seeing the screen (it will learn to do image processing on its own)
+- Teach by playing and seeing the screen (it will learn to do image processing on its own)
 - Same for powerups/shops
 - Remove 1 out of the reward every second to incentivize trying different options
 - Remove 10 out of the reward every second if immobile (coordinates haven't changed for more than 1 second)
