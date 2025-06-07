@@ -1,3 +1,4 @@
+import os
 import random
 from collections import deque
 
@@ -51,7 +52,7 @@ class DQN(nn.Module):
 
 class Agent:
     def __init__(self, action_space, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_min=0.01,
-                 epsilon_decay=0.995):
+                 epsilon_decay=0.995, pretrained_model=None):
         self.action_space = action_space
         self.action_size = len(action_space)
         self.memory = deque(maxlen=10000)
@@ -67,8 +68,13 @@ class Agent:
         self.target_network = DQN(num_actions=self.action_size).to(self.device)
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=learning_rate)
 
-        # Update target network
-        self.update_target_network()
+        # Load pre-trained model if provided
+        if pretrained_model and os.path.exists(pretrained_model):
+            self.load_model(pretrained_model)
+            print(f"Loaded pre-trained model from: {pretrained_model}")
+        else:
+            # Update target network for fresh models
+            self.update_target_network()
 
         # Training parameters
         self.batch_size = 32
@@ -210,8 +216,32 @@ class Agent:
         }, filepath)
 
     def load_model(self, filepath):
-        checkpoint = torch.load(filepath, map_location=self.device)
-        self.q_network.load_state_dict(checkpoint['q_network_state_dict'])
-        self.target_network.load_state_dict(checkpoint['target_network_state_dict'])
-        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        self.epsilon = checkpoint['epsilon']
+        try:
+            checkpoint = torch.load(filepath, map_location=self.device)
+
+            # Handle different checkpoint formats
+            if 'model_state_dict' in checkpoint:
+                # Format from train.py
+                self.q_network.load_state_dict(checkpoint['model_state_dict'])
+                self.target_network.load_state_dict(checkpoint['model_state_dict'])
+                if 'optimizer_state_dict' in checkpoint:
+                    self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                # Set a reasonable epsilon for pre-trained models
+                self.epsilon = 0.1
+            elif 'q_network_state_dict' in checkpoint:
+                # Format from main.py saves
+                self.q_network.load_state_dict(checkpoint['q_network_state_dict'])
+                self.target_network.load_state_dict(checkpoint['target_network_state_dict'])
+                self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                self.epsilon = checkpoint['epsilon']
+            else:
+                # Direct state dict
+                self.q_network.load_state_dict(checkpoint)
+                self.target_network.load_state_dict(checkpoint)
+                self.epsilon = 0.1
+
+            print(f"Model loaded successfully. Epsilon set to: {self.epsilon:.3f}")
+
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            print("Continuing with randomly initialized model...")

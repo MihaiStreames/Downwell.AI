@@ -157,7 +157,7 @@ class CustomDownwellEnvironment:
             reward += combo_inc_reward
             print(f"Combo increased by {combo_diff}, reward: +{combo_inc_reward:.2f}")
 
-        # Combo maintenance (tiny values)
+        # Combo maintenance
         if current_combo > 0:
             combo_maintain_reward = min(current_combo * 0.05, 0.5)
             reward += combo_maintain_reward
@@ -166,13 +166,13 @@ class CustomDownwellEnvironment:
         if self.last_combo > 0 and current_combo == 0:
             penalty = min(self.last_combo * 2, 10)
             reward -= penalty
-            print(f"COMBO BROKEN! Lost {self.last_combo} combo, penalty: -{penalty:.1f}")
+            print(f"Combo broken! Lost {self.last_combo} combo, penalty: -{penalty:.1f}")
 
         # Gem high bonus
         if player.is_gem_high():
             reward += 25.0
 
-        # Main objective: downward movement (rely primarily on Y position)
+        # Main objective: downward movement
         y_diff = self.prevY - current_y
         if y_diff > 5.0:
             scaled_reward = min(y_diff / 20.0, 2.0)
@@ -188,7 +188,7 @@ class CustomDownwellEnvironment:
         if self.steps_without_progress > 20:
             reward -= 5.0
 
-        # Handle immobility - only use X position if available, otherwise rely on Y
+        # Handle immobility
         if current_x is not None and self.prevX is not None:
             # Check if truly immobile (both X and Y)
             if abs(current_x - self.prevX) < 0.1 and abs(current_y - self.prevY) < 0.1:
@@ -201,7 +201,7 @@ class CustomDownwellEnvironment:
             # If X position unavailable, only check Y immobility
             if abs(current_y - self.prevY) < 0.1:
                 self.immobile_steps += 1
-                if self.immobile_steps > 8:  # Be more lenient without X position
+                if self.immobile_steps > 8:
                     reward -= 0.5 * self.immobile_steps
             else:
                 self.immobile_steps = 0
@@ -211,7 +211,7 @@ class CustomDownwellEnvironment:
         if hp_diff > 0:
             reward -= hp_diff * 3
 
-        # Update tracking variables (handle X being None gracefully)
+        # Update tracking variables
         if current_x is not None:
             self.prevX = current_x
         self.prevY = current_y
@@ -221,7 +221,7 @@ class CustomDownwellEnvironment:
 
         if abs(reward) > 5:
             print(
-                f"HIGH REWARD DEBUG: {reward:.2f} (HP:{current_hp}, Gems:{current_gems}, Combo:{current_combo}, Y-diff:{y_diff:.1f})")
+                f"High reward event: {reward:.2f} (HP:{current_hp}, Gems:{current_gems}, Combo:{current_combo}, Y-diff:{y_diff:.1f})")
 
         return reward
 

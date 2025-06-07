@@ -1,3 +1,10 @@
-/pointermaps/
-.venv
+# IDE files
 /.idea
+
+# Python
+__pycache__
+/.venv
+
+# Data files
+/pointermaps
+*.pkl

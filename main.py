@@ -1,3 +1,4 @@
+import argparse
 import platform
 import time
 
@@ -17,6 +18,11 @@ def get_game_module(proc, executable_name):
 
 
 def main():
+    parser = argparse.ArgumentParser(description='Downwell AI Training')
+    parser.add_argument('--load-model', type=str, help='Path to pre-trained model to load')
+    parser.add_argument('--episodes', type=int, default=1000, help='Number of episodes to train')
+    args = parser.parse_args()
+
     print("Starting Downwell.AI v1.0")
     print("=" * 50)
 
@@ -50,17 +56,21 @@ def main():
     try:
         player = Player(proc, gameModule)
         gameEnv = CustomDownwellEnvironment()
-        agent = Agent(gameEnv.actions)
+        agent = Agent(gameEnv.actions, pretrained_model=args.load_model)
         print("All components initialized successfully")
     except Exception as e:
         print(f"Error initializing components: {str(e)}")
         return
 
+    if args.load_model:
+        print(f"Loaded pre-trained model: {args.load_model}")
+        print(f"Starting epsilon: {agent.epsilon:.3f}")
+
     print("\nStarting training...")
     print("=" * 50)
 
     # Training parameters
-    max_episodes = 1000
+    max_episodes = args.episodes
     max_steps_per_episode = 5000
     save_frequency = 10  # Save model every 10 episodes
     target_update_frequency = 100  # Update target network every 100 episodes
