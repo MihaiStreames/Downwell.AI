@@ -1,6 +1,5 @@
 import platform
 import time
-from datetime import datetime
 
 from pymem.process import *
 
@@ -17,22 +16,11 @@ def get_game_module(proc, executable_name):
         raise
 
 
-def setup_directories():
-    os.makedirs("models", exist_ok=True)
-    os.makedirs("logs", exist_ok=True)
-
-
-def save_training_log(episode, reward, steps, epsilon, filename="logs/training_log.txt"):
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(filename, "a") as f:
-        f.write(f"{timestamp} - Episode: {episode}, Reward: {reward:.2f}, Steps: {steps}, Epsilon: {epsilon:.3f}\n")
-
-
 def main():
-    print("Starting Downwell RL Bot v1.0")
+    print("Starting Downwell.AI v1.0")
     print("=" * 50)
 
-    setup_directories()
+    os.makedirs("models", exist_ok=True)
 
     os_type = platform.system()
     if os_type != "Windows":
@@ -62,7 +50,7 @@ def main():
     try:
         player = Player(proc, gameModule)
         gameEnv = CustomDownwellEnvironment()
-        agent = Agent(gameEnv.actions, learning_rate=0.0001, epsilon=1.0, epsilon_decay=0.995)
+        agent = Agent(gameEnv.actions)
         print("All components initialized successfully")
     except Exception as e:
         print(f"Error initializing components: {str(e)}")
@@ -97,22 +85,24 @@ def main():
             episode_reward = 0
             steps = 0
             start_time = time.time()
+            durations = []
 
             while steps < max_steps_per_episode:
                 steps += 1
 
                 # 1. Agent chooses action
-                action = agent.get_action(state)
+                action, duration = agent.get_action(state)
+                durations.append(duration)
 
                 # 2. Environment executes action
-                next_state, reward, done = gameEnv.step(action, player)
+                next_state, reward, done = gameEnv.step((action, duration), player)
 
                 if next_state is None:
                     print("Failed to get next state, ending episode")
                     break
 
                 # 3. Agent learns from experience
-                agent.train(state, action, reward, next_state, done)
+                agent.train(state, action, duration, reward, next_state, done)
 
                 # 4. Update state and reward
                 state = next_state
@@ -122,26 +112,31 @@ def main():
                 debug_info = gameEnv.get_debug_info(player)
 
                 if steps % 50 == 0:
-                    print(f"Step {steps}: Action={gameEnv.actions[action]}, Reward={reward:.1f}, "
-                          f"Total={episode_reward:.1f}, HP={debug_info.get('hp', 'N/A')}, "
-                          f"Gems={debug_info.get('gems', 'N/A')}, Combo={debug_info.get('combo', 'N/A')}")
+                    avg_duration = sum(durations[-50:]) / min(50, len(durations))
+                    print(f"Step {steps}: Action={gameEnv.actions[action]}({duration:.2f}s), "
+                          f"Reward={reward:.1f}, Total={episode_reward:.1f}, "
+                          f"HP={debug_info.get('hp', 'N/A')}, "
+                          f"Gems={debug_info.get('gems', 'N/A')}, "
+                          f"Combo={debug_info.get('combo', 'N/A')}, "
+                          f"AvgDur={avg_duration:.2f}s")
 
                 if done:
                     break
 
             # Episode finished
             episode_time = time.time() - start_time
+            avg_episode_duration = sum(durations) / len(durations) if durations else 0
+
             print(f"\nEpisode {episode} finished:")
             print(f"  Total Reward: {episode_reward:.2f}")
             print(f"  Steps: {steps}")
             print(f"  Time: {episode_time:.1f}s")
             print(f"  Epsilon: {agent.epsilon:.3f}")
             print(f"  Memory size: {len(agent.memory)}")
-
-            save_training_log(episode, episode_reward, steps, agent.epsilon)
+            print(f"  Average action duration: {avg_episode_duration:.3f}s")
 
             if episode % save_frequency == 0:
-                model_path = f"models/dqn_model_episode_{episode}.pth"
+                model_path = f"models/downwell_ai_{episode}.pth"
                 agent.save_model(model_path)
                 print(f"Model saved to {model_path}")
 
@@ -157,15 +152,20 @@ def main():
         print(f"\nUnexpected error during training: {e}")
     finally:
         # Save final model
-        final_model_path = f"models/dqn_model_final_episode_{episode}.pth"
+        final_model_path = f"models/downwell_ai_final_{episode}.pth"
         try:
             agent.save_model(final_model_path)
             print(f"Final model saved to {final_model_path}")
         except Exception as e:
             print(f"Error saving final model: {e}")
 
+        # Clean up OpenCV windows
+        import cv2
+        cv2.destroyAllWindows()
+
         print("\nTraining session ended")
         print(f"Total episodes completed: {episode}")
 
-    if __name__ == "__main__":
-        main()
+
+if __name__ == "__main__":
+    main()

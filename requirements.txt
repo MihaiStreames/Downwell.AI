@@ -1,5 +1,7 @@
-numpy~=2.3.0rc1
+numpy~=2.3.0
 PyAutoGUI~=0.9.54
 PyGetWindow~=0.0.9
 Pymem~=1.14.0
 opencv-python~=4.11.0.86
+torch~=2.7.1
+pillow~=11.2.1

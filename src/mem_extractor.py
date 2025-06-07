@@ -41,8 +41,12 @@ class Player:
             return None
 
         attr_data = self.attr[attribute]
-        bases = attr_data.get("bases", [attr_data["base"]])
-        offsets_list = attr_data.get("offsets", [attr_data["offsets"]])
+        if "bases" in attr_data:
+            bases = attr_data["bases"]
+            offsets_list = attr_data["offsets"]
+        else:
+            bases = [attr_data["base"]]
+            offsets_list = [attr_data["offsets"]]
 
         for base, offsets in zip(bases, offsets_list):
             try:

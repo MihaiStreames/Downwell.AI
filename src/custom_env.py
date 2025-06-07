@@ -10,37 +10,43 @@ import pygetwindow as gw
 class CustomDownwellEnvironment:
     def __init__(self):
         self.gameWindow = None
-        self.actions = {0: 'left', 1: 'right', 2: 'space'}
-        self.multipliers = [10, 2, 3, -5]
-        self.prevX = 0
+        self.actions = {
+            0: 'none',
+            1: 'left',
+            2: 'right',
+            3: 'space',
+            4: 'left+space',
+            5: 'right+space'
+        }
+
+        # Tracking variables
+        self.prevX = None
         self.prevY = 0
         self.last_hp = 0
         self.last_gems = 0
         self.last_combo = 0
-        self.frame_stack_size = 4
-        self.frame_stack = []
-
-        # Set pyautogui settings
-        pyautogui.FAILSAFE = False
-        pyautogui.PAUSE = 0.01
+        self.steps_without_progress = 0
+        self.last_significant_y = 0
+        self.immobile_steps = 0
 
     def window_exists(self) -> bool:
         windows = gw.getWindowsWithTitle('Downwell')
-        if windows:
-            self.gameWindow = windows[0]
-            return True
-        else:
-            print("Downwell window not found! Make sure the game is running.")
-            return False
+        for window in windows:
+            if window.title == 'Downwell':
+                self.gameWindow = window
+                print(f"Found Downwell window!")
+                return True
+        print("Downwell window not found.")
+        self.gameWindow = None
+        return False
 
     def get_game_window_dimensions(self) -> Tuple[int, int, int, int]:
         if self.gameWindow is None:
             if not self.window_exists():
                 raise Exception("Cannot find Downwell window!")
 
-        # Make sure window is active
         self.gameWindow.activate()
-        time.sleep(0.1)
+        time.sleep(0.02)
         return self.gameWindow.left, self.gameWindow.top, self.gameWindow.width, self.gameWindow.height
 
     def get_state(self) -> Optional[np.ndarray]:
@@ -50,15 +56,24 @@ class CustomDownwellEnvironment:
         # Convert to numpy array
         frame = np.array(screenshot)
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-        # Resize to standard size
-        frame = cv2.resize(frame, (84, 84), interpolation=cv2.INTER_AREA)
-
         return frame
 
     @staticmethod
+    def show_ai_vision(state, action_info=""):
+        if state is not None:
+            display_frame = state.copy()
+
+            if action_info:
+                cv2.putText(display_frame, action_info, (5, 15),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+
+            cv2.imshow('AI Vision', display_frame)
+            cv2.waitKey(1)
+
+    @staticmethod
     def is_game_over(player) -> bool:
-        return player.get_value('hp') <= 0
+        hp = player.get_value('hp')
+        return hp is not None and hp <= 0
 
     def reset(self, player) -> Optional[np.ndarray]:  # Whenever launching the bot, restart the game
         print("Resetting game...")
@@ -67,38 +82,42 @@ class CustomDownwellEnvironment:
             return None
 
         try:
+            self.gameWindow.restore()
             self.gameWindow.activate()
-            time.sleep(0.5)
+            time.sleep(0.2)
 
-            # Reset game state tracking
-            self.prevX = 0
+            # Reset tracking variables
+            self.prevX = None
             self.prevY = 0
             self.last_hp = 0
             self.last_gems = 0
             self.last_combo = 0
-            self.frame_stack = []
+            self.steps_without_progress = 0
+            self.last_significant_y = 0
+            self.immobile_steps = 0
 
             # Game reset sequence
             pyautogui.press('esc')
-            time.sleep(1)
+            time.sleep(0.2)
             pyautogui.press('right')
-            time.sleep(0.5)
+            time.sleep(0.1)
             pyautogui.press('space')
-            time.sleep(1)
+            time.sleep(0.2)
             pyautogui.press('space')
             time.sleep(2)
 
             # If game over, restart
             if self.is_game_over(player):
                 print("Game over detected, restarting...")
-                time.sleep(1)
                 pyautogui.press('space')
-                time.sleep(2)
+                time.sleep(1)
 
-            # Wait for game to start
-            time.sleep(1)
+            # Wait for the game to reset
+            time.sleep(2)
+            self.gameWindow.restore()
+            self.gameWindow.activate()
 
-            return self.get_state()  # Get the initial state after reset
+            return self.get_state()
 
         except Exception as e:
             print(f"Error resetting game: {e}")
@@ -108,75 +127,141 @@ class CustomDownwellEnvironment:
         current_hp = player.get_value('hp') or 0
         current_gems = player.get_value('gems') or 0
         current_combo = player.get_value('combo') or 0
-        current_x = player.get_value('xpos') or 0
+
+        current_x = player.get_value('xpos')
         current_y = player.get_value('ypos') or 0
 
         reward = 0
 
         # Base survival reward
         if current_hp > 0:
-            reward += 1
+            reward += 0.01
 
-        # Health-based reward
-        reward += current_hp * self.multipliers[0]
+        # Health rewards
+        if current_hp >= 4:
+            reward += 0.5
+        elif current_hp >= 2:
+            reward += 0.2
 
-        # Reward for gem collection
+        # Gem collection rewards
         gem_diff = current_gems - self.last_gems
         if gem_diff > 0:
-            reward += gem_diff * 5
+            gem_reward = min(gem_diff * 0.2, 2.0)
+            reward += gem_reward
+            print(f"Collected {gem_diff} gems, reward: +{gem_reward:.2f}")
 
-        # Reward for maintaining combo
-        if current_combo > 0:
-            reward += current_combo * self.multipliers[2]
-
-        # Combo increase reward
+        # Combo system
         combo_diff = current_combo - self.last_combo
         if combo_diff > 0:
-            reward += combo_diff * 10
+            combo_inc_reward = min(combo_diff * 1.0, 3.0)
+            reward += combo_inc_reward
+            print(f"Combo increased by {combo_diff}, reward: +{combo_inc_reward:.2f}")
 
-        # Reward for gem high state
+        # Combo maintenance (tiny values)
+        if current_combo > 0:
+            combo_maintain_reward = min(current_combo * 0.05, 0.5)
+            reward += combo_maintain_reward
+
+        # Combo breaking penalty
+        if self.last_combo > 0 and current_combo == 0:
+            penalty = min(self.last_combo * 2, 10)
+            reward -= penalty
+            print(f"COMBO BROKEN! Lost {self.last_combo} combo, penalty: -{penalty:.1f}")
+
+        # Gem high bonus
         if player.is_gem_high():
-            reward += self.multipliers[1] * 50
+            reward += 25.0
 
-        # Movement penalty (encourage exploration)
-        if abs(current_x - self.prevX) < 0.1 and abs(current_y - self.prevY) < 0.1:
-            reward += self.multipliers[3]  # Negative penalty
-
-        # Downward movement reward (main objective)
+        # Main objective: downward movement (rely primarily on Y position)
         y_diff = self.prevY - current_y
-        if y_diff > 0:  # Moving down
-            reward += y_diff * 2
+        if y_diff > 5.0:
+            scaled_reward = min(y_diff / 20.0, 2.0)
+            reward += scaled_reward
+            self.steps_without_progress = 0
+            self.last_significant_y = current_y
+            print(f"Downward progress: {y_diff:.1f} pixels, reward: +{scaled_reward:.2f}")
+        else:
+            self.steps_without_progress += 1
 
-        # Update tracking variables
-        self.prevX = current_x
+        if self.steps_without_progress > 10:
+            reward -= 2.0
+        if self.steps_without_progress > 20:
+            reward -= 5.0
+
+        # Handle immobility - only use X position if available, otherwise rely on Y
+        if current_x is not None and self.prevX is not None:
+            # Check if truly immobile (both X and Y)
+            if abs(current_x - self.prevX) < 0.1 and abs(current_y - self.prevY) < 0.1:
+                self.immobile_steps += 1
+                if self.immobile_steps > 5:
+                    reward -= 1.0 * self.immobile_steps
+            else:
+                self.immobile_steps = 0
+        else:
+            # If X position unavailable, only check Y immobility
+            if abs(current_y - self.prevY) < 0.1:
+                self.immobile_steps += 1
+                if self.immobile_steps > 8:  # Be more lenient without X position
+                    reward -= 0.5 * self.immobile_steps
+            else:
+                self.immobile_steps = 0
+
+        # Damage penalty
+        hp_diff = self.last_hp - current_hp
+        if hp_diff > 0:
+            reward -= hp_diff * 3
+
+        # Update tracking variables (handle X being None gracefully)
+        if current_x is not None:
+            self.prevX = current_x
         self.prevY = current_y
         self.last_hp = current_hp
         self.last_gems = current_gems
         self.last_combo = current_combo
 
+        if abs(reward) > 5:
+            print(
+                f"HIGH REWARD DEBUG: {reward:.2f} (HP:{current_hp}, Gems:{current_gems}, Combo:{current_combo}, Y-diff:{y_diff:.1f})")
+
         return reward
 
-    def step(self, action: int, player) -> Tuple[Optional[np.ndarray], float, bool]:
-        if action not in self.actions:
-            print(f"Unknown action: {action}")
+    def step(self, action_data, player) -> Tuple[Optional[np.ndarray], float, bool]:
+        action_type, duration = action_data
+
+        if action_type not in self.actions:
+            print(f"Unknown action: {action_type}")
             return None, -10, True
 
         # Execute action
-        pyautogui.press(self.actions[action])
-        time.sleep(0.1)  # Wait for action to register
+        self.gameWindow.activate()
+        action_keys = self.actions[action_type]
 
-        # Get next state
+        if action_keys == 'none':
+            time.sleep(duration)
+        elif '+' in action_keys:
+            keys = action_keys.split('+')
+            for key in keys:
+                pyautogui.keyDown(key)
+            time.sleep(duration)
+            for key in keys:
+                pyautogui.keyUp(key)
+        else:
+            pyautogui.keyDown(action_keys)
+            time.sleep(duration)
+            pyautogui.keyUp(action_keys)
+
         next_state = self.get_state()
 
-        # Calculate reward
-        reward = self.calculate_reward(player)
+        action_info = f"{self.actions[action_type]}({duration:.2f}s)"
+        self.show_ai_vision(next_state, action_info)
 
-        # Check if game is over
+        reward = self.calculate_reward(player)
         done = self.is_game_over(player)
 
-        # Additional penalty for dying
+        # Death penalty
         if done:
             reward -= 100
+            print("Game over! Applying death penalty.")
 
         return next_state, reward, done
 
