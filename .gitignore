@@ -8,3 +8,4 @@ __pycache__
 # Data files
 /pointermaps
 *.pkl
+*.pth

@@ -2,7 +2,7 @@ import platform
 
 from pymem.process import *
 
-from src.game_attributes import *
+from utils.game_attributes import *
 
 
 class Player:
@@ -15,6 +15,9 @@ class Player:
         if self.os != "Windows": raise NotImplementedError("Currently only Windows is supported")
 
     def is_gem_high(self) -> bool:
+        if self.get_value('gemHigh') is None:
+            print("Failed to read gemHigh value")
+            return False
         return self.get_value('gemHigh') >= 100
 
     def get_ptr_addr(self, base: int, offsets: list) -> int:

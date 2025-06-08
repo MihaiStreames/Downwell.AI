@@ -1,12 +1,18 @@
 import argparse
+import os
 import platform
 import time
+from collections import deque
 
-from pymem.process import *
+import cv2
+import pymem
+from pymem.process import module_from_name
 
-from src.custom_env import CustomDownwellEnvironment
-from src.dqn_agent import Agent
-from src.mem_extractor import Player
+from agents.dqn_agent import DQNAgent
+from core.orchestrator import DownwellAI
+from core.reward_calculator import RewardCalculator
+from environment.game_env import CustomDownwellEnvironment
+from environment.mem_extractor import Player
 
 
 def get_game_module(proc, executable_name):
@@ -21,6 +27,9 @@ def main():
     parser = argparse.ArgumentParser(description='Downwell AI Training')
     parser.add_argument('--load-model', type=str, help='Path to pre-trained model to load')
     parser.add_argument('--episodes', type=int, default=1000, help='Number of episodes to train')
+    parser.add_argument('--gamma', type=float, default=0.95, help='Discount factor')
+    parser.add_argument('--memory-size', type=int, default=12500, help='Experience replay buffer size')
+    parser.add_argument('--learning-rate', type=float, default=0.0005, help='Learning rate')
     args = parser.parse_args()
 
     print("Starting Downwell.AI v1.0")
@@ -28,152 +37,148 @@ def main():
 
     os.makedirs("models", exist_ok=True)
 
-    os_type = platform.system()
-    if os_type != "Windows":
+    # Windows check
+    if platform.system() != "Windows":
         print("ERROR: This script currently only supports Windows.")
-        print("The game memory reading functionality requires Windows-specific libraries.")
         return
 
+    # Connect to game
     executable_name = "downwell.exe"
+    print(f"Connecting to {executable_name}...")
 
-    print(f"Attempting to connect to {executable_name}...")
     try:
         proc = pymem.Pymem(executable_name)
-        print("Successfully connected to game process")
-    except Exception as e:
-        print(f"Error opening process '{executable_name}': {str(e)}")
-        print("Make sure Downwell is running and try again.")
-        return
-
-    try:
         gameModule = get_game_module(proc, executable_name)
-        print("Successfully found game module")
+        print("Successfully connected to game")
     except Exception as e:
-        print(f"Error getting game module: {str(e)}")
+        print(f"Error: {e}")
+        print("Make sure Downwell is running.")
         return
 
-    print("Initializing components...")
+    # Initialize components
     try:
         player = Player(proc, gameModule)
-        gameEnv = CustomDownwellEnvironment()
-        agent = Agent(gameEnv.actions, pretrained_model=args.load_model)
-        print("All components initialized successfully")
+        env = CustomDownwellEnvironment()
+
+        agent = DQNAgent(
+            env.actions,
+            learning_rate=args.learning_rate,
+            gamma=args.gamma,
+            epsilon=1.0,
+            epsilon_min=0.05,
+            epsilon_decay=0.9995,
+            pretrained_model=args.load_model
+        )
+        agent.memory = deque(maxlen=args.memory_size)
+        reward_calc = RewardCalculator()
+        ai_system = DownwellAI(player, env, agent, reward_calc)
+
     except Exception as e:
-        print(f"Error initializing components: {str(e)}")
+        print(f"Error initializing: {e}")
         return
-
-    if args.load_model:
-        print(f"Loaded pre-trained model: {args.load_model}")
-        print(f"Starting epsilon: {agent.epsilon:.3f}")
-
-    print("\nStarting training...")
-    print("=" * 50)
 
     # Training parameters
     max_episodes = args.episodes
-    max_steps_per_episode = 5000
-    save_frequency = 10  # Save model every 10 episodes
-    target_update_frequency = 100  # Update target network every 100 episodes
-
+    save_frequency = 25
+    target_update_frequency = 100
     episode = 0
+    best_reward = float('-inf')
 
     try:
         while episode < max_episodes:
             episode += 1
             print(f"\n--- Episode {episode} ---")
 
-            if not player.validate_connection():
-                print("Lost connection to game. Attempting to reconnect...")
-                time.sleep(5)
-                continue
-
-            state = gameEnv.reset(player)
+            # Reset environment
+            state = env.reset(player)
             if state is None:
-                print("Failed to reset environment, skipping episode")
+                print("Failed to reset, skipping episode")
                 continue
 
-            episode_reward = 0
+            reward_calc.reset_episode()
+            ai_system.start()
+
+            # Monitor episode
+            episode_start = time.time()
             steps = 0
-            start_time = time.time()
-            durations = []
+            max_combo = 0
+            final_gems = 0
 
-            while steps < max_steps_per_episode:
-                steps += 1
+            while True:
+                current_state = ai_system.get_latest_state()
 
-                # 1. Agent chooses action
-                action, duration = agent.get_action(state)
-                durations.append(duration)
+                if current_state:
+                    env.show_ai_vision(
+                        current_state.screenshot,
+                        f"E{episode} HP:{current_state.hp:.0f} G:{current_state.gems:.0f} C:{current_state.combo:.0f} A:{current_state.ammo:.0f} GH:{current_state.gem_high}",
+                        player
+                    )
 
-                # 2. Environment executes action
-                next_state, reward, done = gameEnv.step((action, duration), player)
+                    max_combo = max(max_combo, current_state.combo)
+                    final_gems = current_state.gems
 
-                if next_state is None:
-                    print("Failed to get next state, ending episode")
+                    if current_state.hp <= 0:
+                        print("Episode ended - Game Over!")
+                        break
+
+                    steps += 1
+
+                # Timeout check
+                if time.time() - episode_start > 300:  # 5 minute timeout
+                    print("Episode timeout")
                     break
 
-                # 3. Agent learns from experience
-                agent.train(state, action, duration, reward, next_state, done)
+            ai_system.stop()
 
-                # 4. Update state and reward
-                state = next_state
-                episode_reward += reward
+            # Train on collected data
+            episode_reward, experiences_added = ai_system.train_on_episode()
+            episode_duration = time.time() - episode_start
 
-                # Get debug info
-                debug_info = gameEnv.get_debug_info(player)
-
-                if steps % 50 == 0:
-                    avg_duration = sum(durations[-50:]) / min(50, len(durations))
-                    print(f"Step {steps}: Action={gameEnv.actions[action]}({duration:.2f}s), "
-                          f"Reward={reward:.1f}, Total={episode_reward:.1f}, "
-                          f"HP={debug_info.get('hp', 'N/A')}, "
-                          f"Gems={debug_info.get('gems', 'N/A')}, "
-                          f"Combo={debug_info.get('combo', 'N/A')}, "
-                          f"AvgDur={avg_duration:.2f}s")
-
-                if done:
-                    break
-
-            # Episode finished
-            episode_time = time.time() - start_time
-            avg_episode_duration = sum(durations) / len(durations) if durations else 0
-
-            print(f"\nEpisode {episode} finished:")
-            print(f"  Total Reward: {episode_reward:.2f}")
+            # Episode summary
+            print(f"\nEpisode {episode} Summary:")
+            print(f"  Reward: {episode_reward:.1f}")
+            print(f"  Duration: {episode_duration:.1f}s")
             print(f"  Steps: {steps}")
-            print(f"  Time: {episode_time:.1f}s")
-            print(f"  Epsilon: {agent.epsilon:.3f}")
-            print(f"  Memory size: {len(agent.memory)}")
-            print(f"  Average action duration: {avg_episode_duration:.3f}s")
+            print(f"  Max Combo: {max_combo:.0f}")
+            print(f"  Final Gems: {final_gems:.0f}")
+            print(f"  Experiences: +{experiences_added} (total: {len(agent.memory)}/{agent.memory.maxlen})")
+            print(f"  Epsilon: {agent.epsilon:.4f}")
+
+            if episode_reward > best_reward:
+                best_reward = episode_reward
+                print(f"  🎉 NEW BEST: {best_reward:.2f}")
+                agent.save_model("models/downwell_ai_best.pth")
 
             if episode % save_frequency == 0:
                 model_path = f"models/downwell_ai_{episode}.pth"
                 agent.save_model(model_path)
-                print(f"Model saved to {model_path}")
 
             if episode % target_update_frequency == 0:
                 agent.update_target_network()
                 print("Target network updated")
 
-            time.sleep(2)
-
     except KeyboardInterrupt:
         print("\n\nTraining interrupted by user")
     except Exception as e:
-        print(f"\nUnexpected error during training: {e}")
+        print(f"\nTraining error: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
+        # Cleanup
+        print("\nCleaning up...")
+        if ai_system:
+            ai_system.stop()
+        cv2.destroyAllWindows()
+
         # Save final model
-        final_model_path = f"models/downwell_ai_final_{episode}.pth"
         try:
+            final_model_path = f"models/downwell_ai_final_{episode}.pth"
             agent.save_model(final_model_path)
-            print(f"Final model saved to {final_model_path}")
+            print(f"Final model saved: {final_model_path}")
         except Exception as e:
             print(f"Error saving final model: {e}")
 
-        # Clean up OpenCV windows
-        import cv2
-        cv2.destroyAllWindows()
-
-        print("\nTraining session ended")
+        print("Training session ended")
         print(f"Total episodes completed: {episode}")
 
 
