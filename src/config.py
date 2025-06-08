@@ -1,0 +1,60 @@
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class RewardConfig:
+    """Weights and parameters for the reward function."""
+    base_survival: float = 0.001
+    level_complete_bonus: float = 100.0
+    death_penalty: float = -50.0
+    health_loss_penalty: float = -6.0
+    health_gain_reward: float = 12.0
+    combo_base_reward: float = 0.5
+    combo_growth_reward: float = 6.0
+    combo_break_penalty: float = -3.0
+    high_combo_bonus: float = 2.0
+    gem_base_reward: float = 1.0
+    gem_high_multiplier: float = 2.0
+    progress_reward: float = 0.1
+    backward_penalty: float = -0.5
+    stagnation_penalty: float = -0.05
+    stagnation_threshold: int = 120
+
+
+@dataclass(frozen=True)
+class AgentConfig:
+    """Hyperparameters for the DQN Agent."""
+    learning_rate: float = 0.0005
+    gamma: float = 0.95
+    epsilon_start: float = 1.0
+    epsilon_min: float = 0.05
+    epsilon_decay: float = 0.999997
+    train_start: int = 10000
+    batch_size: int = 64
+    pretrained_model: str = "models/latest.pth"
+
+
+@dataclass(frozen=True)
+class TrainConfig:
+    """Parameters for the main training loop."""
+    max_episodes: int = 5000
+    memory_size: int = 500000
+    target_update_frequency: int = 100
+    save_frequency: int = 25
+
+
+@dataclass(frozen=True)
+class EnvConfig:
+    """Configuration for the game environment and threads."""
+    image_size: tuple[int, int] = (84, 84)
+    perceptor_fps: int = 60
+    thinker_fps: int = 60
+
+
+@dataclass(frozen=True)
+class AppConfig:
+    """Root configuration object."""
+    agent: AgentConfig = AgentConfig()
+    rewards: RewardConfig = RewardConfig()
+    training: TrainConfig = TrainConfig()
+    env: EnvConfig = EnvConfig()

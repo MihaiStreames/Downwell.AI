@@ -6,10 +6,10 @@ from utils.game_attributes import *
 
 
 class Player:
-    def __init__(self, pc, gameModule):
+    def __init__(self, pc, game_module):
         self.os = platform.system()
         self.pc = pc
-        self.gameModule = gameModule
+        self.game_module = game_module
         self.attr = PLAYER_PTR
 
         if self.os != "Windows": raise NotImplementedError("Currently only Windows is supported")
@@ -53,7 +53,7 @@ class Player:
 
         for base, offsets in zip(bases, offsets_list):
             try:
-                address = self.get_ptr_addr(self.gameModule + base, offsets)
+                address = self.get_ptr_addr(self.game_module + base, offsets)
                 value = self.get_type(attr_data["type"], address)
                 return value
             except pymem.exception.MemoryReadError:

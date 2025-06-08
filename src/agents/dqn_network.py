@@ -21,7 +21,6 @@ class DQN(nn.Module):
         # Combined processing: image features + memory features
         self.fc1 = nn.Linear(7 * 7 * 64 + 64, 256)
         self.action_head = nn.Linear(256, num_actions)
-        self.duration_head = nn.Linear(256, 1)
 
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.1)
@@ -63,7 +62,6 @@ class DQN(nn.Module):
         x = self.relu(self.fc1(combined_features))
         x = self.dropout(x)
 
-        # Output action probabilities and duration
+        # Output actions
         actions = self.action_head(x)
-        duration = torch.relu(self.duration_head(x)) * 0.5 + 0.02  # 0.02-0.52s range
-        return actions, duration
+        return actions

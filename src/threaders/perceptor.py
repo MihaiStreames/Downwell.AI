@@ -7,13 +7,13 @@ from models.game_state import GameState
 class PerceptorThread(threading.Thread):
     """Continuously captures game state at high frequency"""
 
-    def __init__(self, player, env, state_buffer, target_fps=60):
+    def __init__(self, player, env, state_buffer, perception_fps=60):
         super().__init__(daemon=True)
         self.player = player
         self.env = env
         self.state_buffer = state_buffer
-        self.target_fps = target_fps
-        self.frame_interval = 1.0 / target_fps
+        self.target_fps = perception_fps
+        self.frame_interval = 1.0 / perception_fps
         self.running = True
         self.frame_count = 0
         self.lock = threading.Lock()
@@ -25,15 +25,19 @@ class PerceptorThread(threading.Thread):
                 # Capture game state
                 screenshot = self.env.get_state()
 
-                # Get game state values with HP sentinel only
+                # Get game state values
                 hp = self.player.get_value('hp')
-                if hp is None: hp = 999.0  # Sentinel for level transitions
+                xpos = self.player.get_value('xpos')
+                ypos = self.player.get_value('ypos')
 
-                # Get game state
+                # If we fail to read critical position or health data,
+                # treat the entire frame as a transition state
+                if xpos is None or ypos is None or hp is None: hp = 999.0
+
                 gems = self.player.get_value('gems') or 0
                 combo = self.player.get_value('combo') or 0
-                xpos = self.player.get_value('xpos') or 0
-                ypos = self.player.get_value('ypos') or 0
+                xpos = xpos or 0
+                ypos = ypos or 0
                 ammo = self.player.get_value('ammo') or 0
                 gem_high = self.player.is_gem_high()
 

@@ -1,16 +1,16 @@
-import argparse
 import os
 import platform
 import time
 from collections import deque
 
-import cv2
 import pymem
 from pymem.process import module_from_name
 
 from agents.dqn_agent import DQNAgent
+from config import AppConfig
 from core.orchestrator import DownwellAI
 from core.reward_calculator import RewardCalculator
+from core.vision import AIVision
 from environment.game_env import CustomDownwellEnvironment
 from environment.mem_extractor import Player
 
@@ -24,13 +24,7 @@ def get_game_module(proc, executable_name):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Downwell AI Training')
-    parser.add_argument('--load-model', type=str, help='Path to pre-trained model to load')
-    parser.add_argument('--episodes', type=int, default=1000, help='Number of episodes to train')
-    parser.add_argument('--gamma', type=float, default=0.95, help='Discount factor')
-    parser.add_argument('--memory-size', type=int, default=12500, help='Experience replay buffer size')
-    parser.add_argument('--learning-rate', type=float, default=0.0005, help='Learning rate')
-    args = parser.parse_args()
+    config = AppConfig()
 
     print("Starting Downwell.AI v1.0")
     print("=" * 50)
@@ -58,31 +52,29 @@ def main():
     # Initialize components
     try:
         player = Player(proc, gameModule)
-        env = CustomDownwellEnvironment()
+        env = CustomDownwellEnvironment(config=config.env)
 
         agent = DQNAgent(
-            env.actions,
-            learning_rate=args.learning_rate,
-            gamma=args.gamma,
-            epsilon=1.0,
-            epsilon_min=0.05,
-            epsilon_decay=0.9995,
-            pretrained_model=args.load_model
+            action_space=env.actions,
+            config=config.agent
         )
-        agent.memory = deque(maxlen=args.memory_size)
-        reward_calc = RewardCalculator()
-        ai_system = DownwellAI(player, env, agent, reward_calc)
+        agent.memory = deque(maxlen=config.training.memory_size)
+        reward_calc = RewardCalculator(config=config.rewards)
+        ai_system = DownwellAI(player, env, agent, reward_calc, config=config.env)
 
     except Exception as e:
         print(f"Error initializing: {e}")
         return
 
     # Training parameters
-    max_episodes = args.episodes
-    save_frequency = 25
-    target_update_frequency = 100
+    max_episodes = config.training.max_episodes
+    save_frequency = config.training.save_frequency
+    target_update_frequency = config.training.target_update_frequency
     episode = 0
     best_reward = float('-inf')
+
+    # AI Vision
+    vision = AIVision()
 
     try:
         while episode < max_episodes:
@@ -101,29 +93,22 @@ def main():
             # Monitor episode
             episode_start = time.time()
             max_combo = 0
-            final_gems = 0
 
             while True:
                 current_state = ai_system.get_latest_state()
 
                 if current_state:
-                    env.show_ai_vision(
-                        current_state.screenshot,
-                        f"E{episode} HP:{current_state.hp:.0f} G:{current_state.gems:.0f} C:{current_state.combo:.0f} A:{current_state.ammo:.0f} GH:{current_state.gem_high}",
-                        player
-                    )
+                    # Update AI vision
+                    _, q_values = agent.get_action(current_state)
+                    vision.display(current_state, q_values)
 
                     max_combo = max(max_combo, current_state.combo)
                     final_gems = current_state.gems
 
                     if current_state.hp <= 0:
                         print("Episode ended - Game Over!")
+                        time.sleep(0.3)
                         break
-
-                # Timeout check
-                if time.time() - episode_start > 300:  # 5 minute timeout
-                    print("Episode timeout")
-                    break
 
             # Stop AI system and get learning statistics
             ai_system.stop()
@@ -137,7 +122,8 @@ def main():
             print(f"  Steps: {episode_stats['steps']}")
             print(f"  Max Combo: {max_combo:.0f}")
             print(f"  Final Gems: {final_gems:.0f}")
-            print(f"  Experiences: +{episode_stats['experiences_added']} (total: {len(agent.memory)}/{agent.memory.maxlen})")
+            print(
+                f"  Experiences: +{episode_stats['experiences_added']} (total: {len(agent.memory)}/{agent.memory.maxlen})")
             print(f"  Epsilon: {agent.epsilon:.4f}")
             print(f"  Learning Rate: {agent.scheduler.get_last_lr()[0]:.6f}")
 
@@ -167,7 +153,7 @@ def main():
         print("\nCleaning up...")
         if ai_system:
             ai_system.stop()
-        cv2.destroyAllWindows()
+        vision.close()
 
         # Save final model
         try:

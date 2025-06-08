@@ -8,40 +8,43 @@ import torch.nn as nn
 import torch.optim as optim
 
 from agents.dqn_network import DQN
+from config import AgentConfig
 
 
 class DQNAgent:
-    def __init__(self, action_space, learning_rate=0.0005, gamma=0.92, epsilon=1.0,
-                 epsilon_min=0.05, epsilon_decay=0.9995, pretrained_model=None):
+    def __init__(self, action_space: dict, config: AgentConfig):
         self.action_space = action_space
         self.action_size = len(action_space)
 
-        self.memory = deque(maxlen=12500)
+        # Set attributes from the config
+        self.gamma = config.gamma
+        self.epsilon = config.epsilon_start
+        self.epsilon_min = config.epsilon_min
+        self.epsilon_decay = config.epsilon_decay
+        self.learning_rate = config.learning_rate
+        self.batch_size = config.batch_size
+        self.train_start = config.train_start
 
-        self.gamma = gamma
-        self.epsilon = epsilon
-        self.epsilon_min = epsilon_min
-        self.epsilon_decay = epsilon_decay
-        self.learning_rate = learning_rate
+        self.memory = deque(maxlen=100)  # This will be overwritten
 
         # Neural networks
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.q_network = DQN(input_channels=6, num_actions=self.action_size, memory_features=6).to(self.device)
         self.target_network = DQN(input_channels=6, num_actions=self.action_size, memory_features=6).to(self.device)
 
-        self.optimizer = optim.Adam(self.q_network.parameters(), lr=learning_rate, eps=1e-8)
-        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=2000, gamma=0.9)
+        self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.learning_rate, eps=1e-8)
+        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=20000, gamma=0.9)
 
-        if pretrained_model and os.path.exists(pretrained_model):
-            self.load_model(pretrained_model)
-            print(f"Loaded pre-trained model from: {pretrained_model}")
+        if config.pretrained_model and os.path.exists(config.pretrained_model):
+            self.load_model(config.pretrained_model)
+            print(f"Loaded pre-trained model from: {config.pretrained_model}")
         else:
             # Update target network for fresh models
             self.update_target_network()
 
         # Training parameters
         self.batch_size = 64
-        self.train_start = 500
+        self.train_start = 10000
 
         print(f"Agent initialized on device: {self.device}")
         print(f"  Gamma: {self.gamma}")
@@ -53,10 +56,8 @@ class DQNAgent:
     def update_target_network(self):
         self.target_network.load_state_dict(self.q_network.state_dict())
 
-    def remember(self, state, action, duration, reward, next_state, done,
-                 memory_features, next_memory_features):
-        self.memory.append((state, action, duration, reward, next_state, done,
-                            memory_features, next_memory_features))
+    def remember(self, state, action, reward, next_state, done, memory_features, next_memory_features):
+        self.memory.append((state, action, reward, next_state, done, memory_features, next_memory_features))
 
     @staticmethod
     def extract_memory_features(game_state):
@@ -76,42 +77,32 @@ class DQNAgent:
 
     def get_action(self, game_state):
         if game_state is None:
-            action = random.randrange(self.action_size)
-            duration = random.uniform(0.02, 0.2)
-            return action, duration, np.zeros(self.action_size)
+            return random.randrange(self.action_size), np.zeros(self.action_size)
 
         # Extract memory features
         memory_features = self.extract_memory_features(game_state)
 
         if random.uniform(0, 1) <= self.epsilon:
-            action = random.randrange(self.action_size)
-            duration = random.uniform(0.02, 0.25)
-            return action, duration, np.zeros(self.action_size)
+            return random.randrange(self.action_size), np.zeros(self.action_size)
 
         # Convert state to tensor
         state_tensor = self.preprocess_state(game_state.screenshot)
         if state_tensor is None:
             print("Failed to preprocess state!")
-            action = random.randrange(self.action_size)
-            duration = 0.1
-            return action, duration, np.zeros(self.action_size)
+            return random.randrange(self.action_size), np.zeros(self.action_size)
 
         state_tensor = state_tensor.unsqueeze(0).to(self.device)
         memory_tensor = torch.from_numpy(memory_features).unsqueeze(0).to(self.device)
 
         try:
             with torch.no_grad():
-                actions, duration_pred = self.q_network(state_tensor, memory_tensor)
+                actions = self.q_network(state_tensor, memory_tensor)
                 action = torch.argmax(actions).item()
-                duration_val = max(0.02, min(0.3, duration_pred.item()))
-
                 q_values = actions.cpu().numpy().flatten()
-                return action, duration_val, q_values
+                return action, q_values
         except Exception as e:
             print(f"Error in neural network forward pass: {e}")
-            action = random.randrange(self.action_size)
-            duration = 0.1
-            return action, duration, np.zeros(self.action_size)
+            return random.randrange(self.action_size), np.zeros(self.action_size)
 
     @staticmethod
     def preprocess_state(state):
@@ -137,28 +128,21 @@ class DQNAgent:
             print(f"Error preprocessing state: {e}")
             return None
 
-    def train(self, state, action, duration, reward, next_state, done,
-              memory_features, next_memory_features):
-        # Store experience in memory
-        self.remember(state.screenshot, action, duration, reward, next_state.screenshot,
-                      done, memory_features, next_memory_features)
+    def train(self, state, action, reward, next_state, done, memory_features, next_memory_features):
+        self.remember(state.screenshot, action, reward, next_state.screenshot, done, memory_features, next_memory_features)
 
         # Train if we have enough experiences
-        if len(self.memory) > self.train_start:
-            loss = self.replay()
-            return loss
+        if len(self.memory) > self.train_start: return self.replay()
         return None
 
     def replay(self):
-        if len(self.memory) < self.batch_size:
-            return None
+        if len(self.memory) < self.batch_size: return None
 
         # Sample random batch from memory
         batch = random.sample(self.memory, self.batch_size)
 
         states = []
         actions = []
-        durations = []
         rewards = []
         next_states = []
         dones = []
@@ -166,8 +150,7 @@ class DQNAgent:
         next_memory_features_batch = []
 
         for experience in batch:
-            (state, action, duration, reward, next_state, done,
-             memory_features, next_memory_features) = experience
+            (state, action, reward, next_state, done, memory_features, next_memory_features) = experience
 
             state_tensor = self.preprocess_state(state)
             next_state_tensor = self.preprocess_state(next_state)
@@ -175,20 +158,17 @@ class DQNAgent:
             if state_tensor is not None and next_state_tensor is not None:
                 states.append(state_tensor)
                 actions.append(action)
-                durations.append(duration)
                 rewards.append(reward)
                 next_states.append(next_state_tensor)
                 dones.append(done)
                 memory_features_batch.append(memory_features)
                 next_memory_features_batch.append(next_memory_features)
 
-        if len(states) == 0:
-            return None
+        if len(states) == 0: return None
 
         # Convert to tensors
         states = torch.stack(states).to(self.device)
         actions = torch.tensor(actions, dtype=torch.long).to(self.device)
-        durations = torch.tensor(durations, dtype=torch.float32).to(self.device)
         rewards = torch.tensor(rewards, dtype=torch.float32).to(self.device)
         next_states = torch.stack(next_states).to(self.device)
         dones = torch.tensor(dones, dtype=torch.bool).to(self.device)
@@ -196,23 +176,18 @@ class DQNAgent:
         next_memory_features_batch = torch.from_numpy(np.array(next_memory_features_batch)).float().to(self.device)
 
         # Current Q values
-        current_actions, current_durations = self.q_network(states, memory_features_batch)
+        current_actions = self.q_network(states, memory_features_batch)
         current_q_values = current_actions.gather(1, actions.unsqueeze(1))
-
-        # Duration loss
-        duration_loss = nn.MSELoss()(current_durations.squeeze(), durations)
 
         # Next Q values from target network
         with torch.no_grad():
-            next_actions, next_durations = self.target_network(next_states, next_memory_features_batch)
+            next_actions = self.target_network(next_states, next_memory_features_batch)
             next_q_values = next_actions.max(1)[0]
             target_q_values = rewards + (self.gamma * next_q_values * ~dones)
 
         # Action Q-value loss
         action_loss = nn.MSELoss()(current_q_values.squeeze(), target_q_values)
-
-        # Combined loss
-        total_loss = action_loss + 0.1 * duration_loss
+        total_loss = action_loss
 
         # Optimize
         self.optimizer.zero_grad()
@@ -222,9 +197,7 @@ class DQNAgent:
         self.scheduler.step()
 
         # Decay epsilon
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
-
+        if self.epsilon > self.epsilon_min: self.epsilon *= self.epsilon_decay
         return total_loss.item()
 
     def save_model(self, filepath):

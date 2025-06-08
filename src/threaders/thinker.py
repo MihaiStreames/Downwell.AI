@@ -53,7 +53,6 @@ class ThinkerThread(threading.Thread):
                         loss = self.agent.train(
                             self.last_state,
                             self.last_action.action_type,
-                            self.last_action.duration,
                             reward,
                             current_state,
                             done,
@@ -67,10 +66,10 @@ class ThinkerThread(threading.Thread):
                             print(f"Step {self.step_count}: Loss = {loss:.4f}, Reward = {reward:.2f}")
 
                     # Make decision for current state
-                    action, duration, q_values = self.agent.get_action(current_state)
+                    action, q_values = self.agent.get_action(current_state)
 
                     # Create action command
-                    action_cmd = Action(action_type=action, duration=duration, frame_id=current_state.frame_id)
+                    action_cmd = Action(action_type=action, frame_id=current_state.frame_id)
                     self.action_queue.put(action_cmd)
 
                     # Update tracking variables for next iteration
