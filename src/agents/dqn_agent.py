@@ -74,7 +74,7 @@ class DQNAgent:
 
         return features
 
-    def get_action(self, game_state, episode_step_count=0):
+    def get_action(self, game_state):
         if game_state is None:
             action = random.randrange(self.action_size)
             duration = random.uniform(0.02, 0.2)
@@ -83,16 +83,9 @@ class DQNAgent:
         # Extract memory features
         memory_features = self.extract_memory_features(game_state)
 
-        # Show training progress
-        memory_status = f"MEM: {len(self.memory)}/{self.memory.maxlen}"
-        training_status = "TRAINING" if len(self.memory) >= self.train_start else f"COLLECTING"
-
         if random.uniform(0, 1) <= self.epsilon:
             action = random.randrange(self.action_size)
             duration = random.uniform(0.02, 0.25)
-            if episode_step_count % 10 == 0:
-                print(f"Random: a={action} d={duration:.2f} ε={self.epsilon:.3f} [{training_status}] [{memory_status}]")
-                print(f"  Memory: HP={memory_features[0]:.1f} G={memory_features[1]:.0f} C={memory_features[2]:.0f}")
             return action, duration, np.zeros(self.action_size)
 
         # Convert state to tensor
@@ -113,12 +106,6 @@ class DQNAgent:
                 duration_val = max(0.02, min(0.3, duration_pred.item()))
 
                 q_values = actions.cpu().numpy().flatten()
-                if episode_step_count % 10 == 0:
-                    print(
-                        f"Network: a={action} d={duration_val:.2f} maxQ={max(q_values):.1f} [{training_status}] [{memory_status}]")
-                    print(
-                        f"  Memory: HP={memory_features[0]:.1f} G={memory_features[1]:.0f} C={memory_features[2]:.0f}")
-
                 return action, duration_val, q_values
         except Exception as e:
             print(f"Error in neural network forward pass: {e}")

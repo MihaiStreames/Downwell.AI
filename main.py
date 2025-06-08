@@ -95,12 +95,11 @@ def main():
                 print("Failed to reset, skipping episode")
                 continue
 
-            reward_calc.reset_episode()
+            # Start AI system
             ai_system.start()
 
             # Monitor episode
             episode_start = time.time()
-            steps = 0
             max_combo = 0
             final_gems = 0
 
@@ -121,29 +120,28 @@ def main():
                         print("Episode ended - Game Over!")
                         break
 
-                    steps += 1
-
                 # Timeout check
                 if time.time() - episode_start > 300:  # 5 minute timeout
                     print("Episode timeout")
                     break
 
+            # Stop AI system and get learning statistics
             ai_system.stop()
-
-            # Train on collected data
-            episode_reward, experiences_added = ai_system.train_on_episode()
+            episode_stats = ai_system.get_episode_stats()
             episode_duration = time.time() - episode_start
 
             # Episode summary
             print(f"\nEpisode {episode} Summary:")
-            print(f"  Reward: {episode_reward:.1f}")
+            print(f"  Reward: {episode_stats['episode_reward']:.1f}")
             print(f"  Duration: {episode_duration:.1f}s")
-            print(f"  Steps: {steps}")
+            print(f"  Steps: {episode_stats['steps']}")
             print(f"  Max Combo: {max_combo:.0f}")
             print(f"  Final Gems: {final_gems:.0f}")
-            print(f"  Experiences: +{experiences_added} (total: {len(agent.memory)}/{agent.memory.maxlen})")
+            print(f"  Experiences: +{episode_stats['experiences_added']} (total: {len(agent.memory)}/{agent.memory.maxlen})")
             print(f"  Epsilon: {agent.epsilon:.4f}")
+            print(f"  Learning Rate: {agent.scheduler.get_last_lr()[0]:.6f}")
 
+            episode_reward = episode_stats['episode_reward']
             if episode_reward > best_reward:
                 best_reward = episode_reward
                 print(f"  🎉 NEW BEST: {best_reward:.2f}")
@@ -152,10 +150,11 @@ def main():
             if episode % save_frequency == 0:
                 model_path = f"models/downwell_ai_{episode}.pth"
                 agent.save_model(model_path)
+                print(f"  💾 Model saved: {model_path}")
 
             if episode % target_update_frequency == 0:
                 agent.update_target_network()
-                print("Target network updated")
+                print("  🎯 Target network updated")
 
     except KeyboardInterrupt:
         print("\n\nTraining interrupted by user")
@@ -180,6 +179,7 @@ def main():
 
         print("Training session ended")
         print(f"Total episodes completed: {episode}")
+        print(f"Best episode reward: {best_reward:.2f}")
 
 
 if __name__ == "__main__":
