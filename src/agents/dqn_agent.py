@@ -8,11 +8,11 @@ import torch.nn as nn
 import torch.optim as optim
 
 from agents.dqn_network import DQN
-from config import AgentConfig
+from config import AgentConfig, EnvConfig
 
 
 class DQNAgent:
-    def __init__(self, action_space: dict, config: AgentConfig):
+    def __init__(self, action_space: dict, config: AgentConfig, env_config: EnvConfig):
         self.action_space = action_space
         self.action_size = len(action_space)
 
@@ -29,8 +29,9 @@ class DQNAgent:
 
         # Neural networks
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.q_network = DQN(input_channels=6, num_actions=self.action_size, memory_features=6).to(self.device)
-        self.target_network = DQN(input_channels=6, num_actions=self.action_size, memory_features=6).to(self.device)
+
+        self.q_network = DQN(input_channels=env_config.frame_stack, num_actions=self.action_size, memory_features=6).to(self.device)
+        self.target_network = DQN(input_channels=env_config.frame_stack, num_actions=self.action_size, memory_features=6).to(self.device)
 
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.learning_rate, eps=1e-8)
         self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=20000, gamma=0.9)
@@ -109,20 +110,9 @@ class DQNAgent:
         try:
             if state is None:
                 return None
-
-            if len(state.shape) == 3:
-                if state.shape[2] == 6:
-                    state_tensor = torch.from_numpy(state).permute(2, 0, 1).float()
-                elif state.shape[2] == 3:
-                    rgb = torch.from_numpy(state).permute(2, 0, 1).float()
-                    state_tensor = torch.cat([rgb, rgb], dim=0)
-                else:
-                    print(f"Unexpected number of channels: {state.shape[2]}")
-                    return None
-            else:
-                print(f"Unexpected state shape: {state.shape}")
-                return None
-
+            # The state is already a numpy array of shape (H, W, C)
+            # We just need to convert it to a tensor and permute the dimensions
+            state_tensor = torch.from_numpy(state).permute(2, 0, 1).float()
             return state_tensor
         except Exception as e:
             print(f"Error preprocessing state: {e}")

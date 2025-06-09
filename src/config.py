@@ -31,7 +31,7 @@ class AgentConfig:
     epsilon_decay: float = 0.999997
     train_start: int = 10000
     batch_size: int = 64
-    pretrained_model: str = "models/latest.pth"
+    pretrained_model: str = ""
 
 
 @dataclass(frozen=True)
@@ -47,6 +47,7 @@ class TrainConfig:
 class EnvConfig:
     """Configuration for the game environment and threads."""
     image_size: tuple[int, int] = (84, 84)
+    frame_stack: int = 4
     perceptor_fps: int = 60
     thinker_fps: int = 60
 

@@ -30,18 +30,18 @@ class ThinkerThread(threading.Thread):
             start_time = time.time()
 
             try:
-                # Get latest state
                 with self.perceptor_lock:
                     current_state = self.state_buffer[-1] if self.state_buffer else None
 
                 if current_state and current_state.screenshot is not None:
                     self.step_count += 1
 
-                    # Extract memory features for current state
                     current_memory_features = self.agent.extract_memory_features(current_state)
 
-                    # LEARNING STEP: If we have a previous state, learn from the transition
-                    if self.last_state is not None and self.last_action is not None:
+                    is_transition_state = current_state.hp == 999.0
+
+                    # Only learn if the current state is NOT a transition state
+                    if self.last_state is not None and self.last_action is not None and not is_transition_state:
                         # Calculate reward for the transition
                         reward = self.reward_calc.calculate_reward(self.last_state, current_state)
                         self.episode_reward += reward
@@ -77,6 +77,8 @@ class ThinkerThread(threading.Thread):
                     self.last_action = action_cmd
                     self.last_memory_features = current_memory_features
 
+                    # If we are in a transition, reset last_state to avoid a large time gap in reward calculation
+                    if is_transition_state: self.last_state = None
             except Exception as e:
                 print(f"Thinker error: {e}")
 

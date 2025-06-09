@@ -56,7 +56,8 @@ def main():
 
         agent = DQNAgent(
             action_space=env.actions,
-            config=config.agent
+            config=config.agent,
+            env_config=config.env
         )
         agent.memory = deque(maxlen=config.training.memory_size)
         reward_calc = RewardCalculator(config=config.rewards)

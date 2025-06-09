@@ -3,16 +3,13 @@ import torch.nn as nn
 
 
 class DQN(nn.Module):
-    def __init__(self, input_channels=6, num_actions=8, memory_features=6):
+    def __init__(self, input_channels=4, num_actions=8, memory_features=6):
         super(DQN, self).__init__()
 
         # Convolutional layers for image processing
         self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=8, stride=4)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
-
-        # Adaptive pooling to handle variable input sizes
-        self.adaptive_pool = nn.AdaptiveAvgPool2d((7, 7))
 
         # Memory features processing (hp, gems, combo, xpos, ypos, ammo)
         self.memory_fc1 = nn.Linear(memory_features, 32)
@@ -45,8 +42,7 @@ class DQN(nn.Module):
         x = self.relu(self.conv2(x))
         x = self.relu(self.conv3(x))
 
-        # Adaptive pooling and flatten
-        x = self.adaptive_pool(x)
+        # Flatten the output of the convolutional layers
         image_features = x.view(x.size(0), -1)
 
         # Process memory features

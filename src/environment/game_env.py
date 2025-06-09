@@ -1,4 +1,5 @@
 import time
+from collections import deque
 from typing import Tuple, Optional
 
 import cv2
@@ -13,13 +14,14 @@ class CustomDownwellEnvironment:
     def __init__(self, config: EnvConfig):
         self.game_window = None
         self.image_size = config.image_size
+        self.stack_size = config.frame_stack
         self.actions = {
             0: set(),
             1: {'space'},
             2: {'right'},
             3: {'left'},
         }
-        self.previous_frame = None
+        self.frame_stack = deque(maxlen=self.stack_size)
 
     def window_exists(self) -> bool:
         windows = gw.getWindowsWithTitle('Downwell')
@@ -47,6 +49,15 @@ class CustomDownwellEnvironment:
         game_bottom = height
         return screenshot[game_top:game_bottom, game_left:game_right]
 
+    def _preprocess_frame(self, frame: np.ndarray) -> np.ndarray:
+        if frame is None:
+            # Return a black frame if something goes wrong
+            return np.zeros(self.image_size, dtype=np.uint8)
+
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        resized_frame = cv2.resize(gray_frame, self.image_size, interpolation=cv2.INTER_AREA)
+        return resized_frame
+
     def get_state(self) -> Optional[np.ndarray]:
         try:
             left, top, width, height = self.get_game_window_dimensions()
@@ -60,21 +71,14 @@ class CustomDownwellEnvironment:
                 frame = frame[:, :, :3]
 
             cropped_frame = self.crop_game_area(frame)
+            processed_frame = self._preprocess_frame(cropped_frame)
+            self.frame_stack.append(processed_frame)
 
-            # Create 6-channel state (RGB + movement difference)
-            if self.previous_frame is not None:
-                game_frame = cv2.resize(cropped_frame, self.image_size, interpolation=cv2.INTER_AREA)
-                prev_frame = cv2.resize(self.previous_frame, self.image_size, interpolation=cv2.INTER_AREA)
-                diff = cv2.absdiff(game_frame, prev_frame)
-                state = np.concatenate([game_frame, diff], axis=2)
-            else:
-                game_frame = cv2.resize(cropped_frame, self.image_size, interpolation=cv2.INTER_AREA)
-                state = np.concatenate([game_frame, game_frame], axis=2)
+            # Ensure the stack is full before returning a state
+            if len(self.frame_stack) < self.stack_size: return None
 
-            self.previous_frame = cropped_frame.copy()
-
+            state = np.stack(self.frame_stack, axis=2)
             return state
-
         except Exception as e:
             print(f"Screenshot error: {e}")
             return None
@@ -91,12 +95,11 @@ class CustomDownwellEnvironment:
             return None
 
         try:
+            self.frame_stack.clear()
+
             self.game_window.restore()
             self.game_window.activate()
             time.sleep(0.2)
-
-            # Reset tracking variables
-            self.previous_frame = None
 
             # Game reset sequence
             pyautogui.press('esc')
@@ -119,7 +122,25 @@ class CustomDownwellEnvironment:
             self.game_window.restore()
             self.game_window.activate()
 
-            return self.get_state()
+            # Populate the frame stack with the initial frame to ensure it's full
+            initial_screenshot = self.get_state()
+            if initial_screenshot is None:
+                # Manually grab one frame to start the process
+                left, top, width, height = self.get_game_window_dimensions()
+                import PIL.ImageGrab as ImageGrab
+                screenshot = ImageGrab.grab(bbox=(left, top, left + width, top + height))
+                frame = np.array(screenshot, dtype=np.uint8)
+                if frame.shape[2] == 4:
+                    frame = frame[:, :, :3]
+                cropped_frame = self.crop_game_area(frame)
+                processed_frame = self._preprocess_frame(cropped_frame)
+            else:
+                processed_frame = initial_screenshot[:, :, -1]  # get last frame
+
+            for _ in range(self.stack_size):
+                self.frame_stack.append(processed_frame)
+
+            return np.stack(self.frame_stack, axis=2)
 
         except Exception as e:
             print(f"Error resetting game: {e}")
