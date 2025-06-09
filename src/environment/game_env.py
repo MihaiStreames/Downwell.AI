@@ -93,7 +93,7 @@ class CustomDownwellEnvironment:
         try:
             self.game_window.restore()
             self.game_window.activate()
-            time.sleep(0.1)
+            time.sleep(0.2)
 
             # Reset tracking variables
             self.previous_frame = None
@@ -102,7 +102,7 @@ class CustomDownwellEnvironment:
             pyautogui.press('esc')
             time.sleep(0.2)
             pyautogui.press('right')
-            time.sleep(0.1)
+            time.sleep(0.2)
             pyautogui.press('space')
             time.sleep(0.2)
             pyautogui.press('space')
