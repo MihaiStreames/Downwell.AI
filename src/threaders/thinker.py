@@ -35,50 +35,41 @@ class ThinkerThread(threading.Thread):
 
                 if current_state and current_state.screenshot is not None:
                     self.step_count += 1
-
                     current_memory_features = self.agent.extract_memory_features(current_state)
-
                     is_transition_state = current_state.hp == 999.0
 
-                    # Only learn if the current state is NOT a transition state
-                    if self.last_state is not None and self.last_action is not None and not is_transition_state:
+                    if self.last_state is not None and self.last_action is not None:
                         # Calculate reward for the transition
                         reward = self.reward_calc.calculate_reward(self.last_state, current_state)
                         self.episode_reward += reward
 
-                        # Check if episode is done (dead, but not during level transitions)
-                        done = current_state.hp <= 0 and current_state.hp != 999.0
+                        if not is_transition_state and self.last_state.hp != 999.0:
+                            done = current_state.hp is not None and current_state.hp <= 0
 
-                        # Train
-                        loss = self.agent.train(
-                            self.last_state,
-                            self.last_action.action_type,
-                            reward,
-                            current_state,
-                            done,
-                            self.last_memory_features,
-                            current_memory_features
-                        )
-                        self.experiences_added += 1
+                            loss = self.agent.train(
+                                self.last_state,
+                                self.last_action.action_type,
+                                reward,
+                                current_state,
+                                done,
+                                self.last_memory_features,
+                                current_memory_features
+                            )
+                            self.experiences_added += 1
 
-                        # Log progress periodically
-                        if loss is not None and self.step_count % 100 == 0:
-                            print(f"Step {self.step_count}: Loss = {loss:.4f}, Reward = {reward:.2f}")
+                            if loss is not None and self.step_count % 100 == 0:
+                                print(f"Step {self.step_count}: Loss = {loss:.4f}, Reward = {reward:.2f}")
 
                     # Make decision for current state
                     action, q_values = self.agent.get_action(current_state)
-
-                    # Create action command
                     action_cmd = Action(action_type=action, frame_id=current_state.frame_id)
                     self.action_queue.put(action_cmd)
 
-                    # Update tracking variables for next iteration
+                    # Update tracking variables
                     self.last_state = current_state
                     self.last_action = action_cmd
                     self.last_memory_features = current_memory_features
 
-                    # If we are in a transition, reset last_state to avoid a large time gap in reward calculation
-                    if is_transition_state: self.last_state = None
             except Exception as e:
                 print(f"Thinker error: {e}")
 

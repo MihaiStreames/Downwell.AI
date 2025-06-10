@@ -30,14 +30,15 @@ class PerceptorThread(threading.Thread):
                 xpos = self.player.get_value('xpos')
                 ypos = self.player.get_value('ypos')
 
-                # If we fail to read critical position or health data,
-                # treat the entire frame as a transition state
-                if xpos is None or ypos is None or hp is None: hp = 999.0
+                # Check if we are in a transition state
+                is_transition_state = xpos is None or hp is None
+
+                # If in a transition, set a sentinel value for HP for other parts of the system,
+                # but keep xpos/ypos as None to be used for level detection.
+                if is_transition_state: hp = 999.0
 
                 gems = self.player.get_value('gems') or 0
                 combo = self.player.get_value('combo') or 0
-                xpos = xpos or 0
-                ypos = ypos or 0
                 ammo = self.player.get_value('ammo') or 0
                 gem_high = self.player.is_gem_high()
 

@@ -10,27 +10,23 @@ class RewardCalculator:
 
         # Tracking variables
         self.stagnation_steps = 0
-        self.last_position = None
-        self.position_history = []
 
     def calculate_reward(self, state: GameState, next_state: GameState) -> float:
+        # =================================================================
+        # 1. LEVEL COMPLETION - Biggest positive reward
+        # =================================================================
+        if self._detect_level_completion(state, next_state):
+            print(f"🎉 LEVEL COMPLETE! Reward: +{self.config.level_complete_bonus}")
+            return self.config.level_complete_bonus
+
         # Handle level transitions (HP = 999 sentinel)
         if state.hp == 999.0 or next_state.hp == 999.0: return self.config.base_survival
         reward = self.config.base_survival
 
         # =================================================================
-        # 1. LEVEL COMPLETION - Biggest positive reward
-        # =================================================================
-        level_completed = self._detect_level_completion(state.ypos, next_state.ypos)
-        if level_completed:
-            reward += self.config.level_complete_bonus
-            self.stagnation_steps = 0
-            print(f"🎉 LEVEL COMPLETE! Reward: +{self.config.level_complete_bonus}")
-
-        # =================================================================
         # 2. DEATH PENALTY - Biggest negative penalty
         # =================================================================
-        if state.hp > 0 and next_state.hp <= 0:
+        if state.hp > 0 >= next_state.hp:
             # Base death penalty
             death_reward = self.config.death_penalty
 
@@ -58,7 +54,7 @@ class RewardCalculator:
 
         elif hp_change < 0:  # Health lost
             health_penalty = abs(hp_change) * self.config.health_loss_penalty
-            reward += health_penalty  # health_loss_penalty is negative
+            reward += health_penalty
             print(f"💔 HP LOST! {health_penalty:.1f}")
 
         # =================================================================
@@ -67,26 +63,27 @@ class RewardCalculator:
         combo_change = next_state.combo - state.combo
 
         # Base combo maintenance reward
-        if next_state.combo > 0:
-            combo_maintain_reward = next_state.combo * self.config.combo_base_reward
-            reward += combo_maintain_reward
+        # if next_state.combo > 0:
+        #     combo_maintain_reward = next_state.combo * self.config.combo_base_reward
+        #     reward += combo_maintain_reward
 
         # Combo growth reward
         if combo_change > 0:
             combo_growth = combo_change * self.config.combo_growth_reward
             reward += combo_growth
-            if combo_change >= 2: print(f"🔥 COMBO GROWTH! +{combo_growth:.1f}")
+            if combo_change >= 1: print(f"🔥 COMBO GROWTH! +{combo_growth:.1f}")
 
         # Combo break penalty
-        elif state.combo >= 3 and next_state.combo == 0:
-            combo_break = self.config.combo_break_penalty * (state.combo / 3.0)  # Worse for higher combos
-            reward += combo_break
-            print(f"💥 COMBO BREAK! {combo_break:.1f}")
+        # elif state.combo >= 3 and next_state.combo == 0:
+        #     combo_break = self.config.combo_break_penalty * (state.combo / 3.0)  # Worse for higher combos
+        #     reward += combo_break
+        #     print(f"💥 COMBO BREAK! {combo_break:.1f}")
 
         # High combo bonus
         if next_state.combo >= 5:
             high_combo = self.config.high_combo_bonus * (next_state.combo - 4)
             reward += high_combo
+            print(f"🌟 HIGH COMBO! +{high_combo:.1f}")
 
         # =================================================================
         # 5. GEM COLLECTION - Moderate rewards
@@ -98,6 +95,7 @@ class RewardCalculator:
             # Apply gem high multiplier
             if next_state.gem_high: gem_reward *= self.config.gem_high_multiplier
             reward += gem_reward
+            print(f"💎 GEMS COLLECTED! +{gem_reward:.1f}")
 
         # =================================================================
         # 6. MOVEMENT AND PROGRESS
@@ -125,16 +123,22 @@ class RewardCalculator:
         # =================================================================
         # 8. FINAL REWARD CAPPING
         # =================================================================
-        # Cap rewards to prevent extreme values (except level completion and death)
-        if not level_completed and next_state.hp > 0: reward = max(-25.0, min(reward, 30.0))
+        # Cap rewards to prevent extreme values
+        if next_state.hp > 0: reward = max(-25.0, min(reward, 30.0))
         return reward
 
     @staticmethod
-    def _detect_level_completion(old_y: float, new_y: float) -> bool:
-        y_difference = new_y - old_y
-        return y_difference > 1000 and old_y < -500 and new_y > -300
+    def _detect_level_completion(state: GameState, next_state: GameState) -> bool:
+        # Ensure we have a valid previous state to compare against
+        if state is None or state.xpos is None or state.ypos is None: return False
+
+        # Condition 1: The player was verifiably in the game world
+        player_was_in_well = state.ypos < -300
+
+        # Condition 2: The player's state is now unreadable
+        player_is_in_menu = next_state.xpos is None or next_state.hp is None
+
+        return player_was_in_well and player_is_in_menu
 
     def reset_episode(self):
         self.stagnation_steps = 0
-        self.last_position = None
-        self.position_history = []

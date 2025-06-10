@@ -8,11 +8,11 @@ import numpy as np
 class GameState:
     """Immutable game state snapshot"""
     screenshot: Optional[np.ndarray]
-    hp: float
+    hp: Optional[float]
     gems: float
     combo: float
-    xpos: float
-    ypos: float
+    xpos: Optional[float]
+    ypos: Optional[float]
     ammo: float
     gem_high: bool
     timestamp: float

@@ -25,11 +25,10 @@ class DQNAgent:
         self.batch_size = config.batch_size
         self.train_start = config.train_start
 
-        self.memory = deque(maxlen=100)  # This will be overwritten
+        self.memory = deque(maxlen=100)  # This will be overwritten in main.py
 
         # Neural networks
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
         self.q_network = DQN(input_channels=env_config.frame_stack, num_actions=self.action_size, memory_features=6).to(self.device)
         self.target_network = DQN(input_channels=env_config.frame_stack, num_actions=self.action_size, memory_features=6).to(self.device)
 
@@ -40,7 +39,6 @@ class DQNAgent:
             self.load_model(config.pretrained_model)
             print(f"Loaded pre-trained model from: {config.pretrained_model}")
         else:
-            # Update target network for fresh models
             self.update_target_network()
 
         # Training parameters
@@ -62,15 +60,19 @@ class DQNAgent:
 
     @staticmethod
     def extract_memory_features(game_state):
-        if game_state is None:
-            return np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        if game_state is None: return np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+
+        # Use default values for None to prevent errors during feature extraction
+        hp = game_state.hp if game_state.hp is not None and game_state.hp != 999.0 else 8.0
+        xpos = game_state.xpos if game_state.xpos is not None else 0.0
+        ypos = game_state.ypos if game_state.ypos is not None else 0.0
 
         features = np.array([
-            game_state.hp if game_state.hp != 999.0 else 8.0,  # Use high HP during transitions
+            hp,
             game_state.gems,
             game_state.combo,
-            game_state.xpos,
-            game_state.ypos,
+            xpos,
+            ypos,
             getattr(game_state, 'ammo', 0.0)
         ], dtype=np.float32)
 
@@ -80,43 +82,30 @@ class DQNAgent:
         if game_state is None:
             return random.randrange(self.action_size), np.zeros(self.action_size)
 
-        # Extract memory features
         memory_features = self.extract_memory_features(game_state)
 
         if random.uniform(0, 1) <= self.epsilon:
             return random.randrange(self.action_size), np.zeros(self.action_size)
 
-        # Convert state to tensor
         state_tensor = self.preprocess_state(game_state.screenshot)
         if state_tensor is None:
-            print("Failed to preprocess state!")
             return random.randrange(self.action_size), np.zeros(self.action_size)
 
         state_tensor = state_tensor.unsqueeze(0).to(self.device)
         memory_tensor = torch.from_numpy(memory_features).unsqueeze(0).to(self.device)
 
-        try:
-            with torch.no_grad():
-                actions = self.q_network(state_tensor, memory_tensor)
-                action = torch.argmax(actions).item()
-                q_values = actions.cpu().numpy().flatten()
-                return action, q_values
-        except Exception as e:
-            print(f"Error in neural network forward pass: {e}")
-            return random.randrange(self.action_size), np.zeros(self.action_size)
+        with torch.no_grad():
+            actions = self.q_network(state_tensor, memory_tensor)
+
+        return torch.argmax(actions).item(), actions.cpu().numpy().flatten()
 
     @staticmethod
     def preprocess_state(state):
-        try:
-            if state is None:
-                return None
-            # The state is already a numpy array of shape (H, W, C)
-            # We just need to convert it to a tensor and permute the dimensions
-            state_tensor = torch.from_numpy(state).permute(2, 0, 1).float()
-            return state_tensor
-        except Exception as e:
-            print(f"Error preprocessing state: {e}")
-            return None
+        if state is None: return None
+        # The environment is responsible for shape and channel count
+        # The agent just needs to convert it to a tensor
+        # Permute (H, W, C) to (C, H, W) for PyTorch
+        return torch.from_numpy(state).permute(2, 0, 1).float()
 
     def train(self, state, action, reward, next_state, done, memory_features, next_memory_features):
         self.remember(state.screenshot, action, reward, next_state.screenshot, done, memory_features, next_memory_features)
@@ -128,67 +117,36 @@ class DQNAgent:
     def replay(self):
         if len(self.memory) < self.batch_size: return None
 
-        # Sample random batch from memory
         batch = random.sample(self.memory, self.batch_size)
 
-        states = []
-        actions = []
-        rewards = []
-        next_states = []
-        dones = []
-        memory_features_batch = []
-        next_memory_features_batch = []
+        states, actions, rewards, next_states, dones, memory_features, next_memory_features = zip(*batch)
 
-        for experience in batch:
-            (state, action, reward, next_state, done, memory_features, next_memory_features) = experience
+        state_tensors = torch.stack([self.preprocess_state(s) for s in states]).to(self.device)
+        next_state_tensors = torch.stack([self.preprocess_state(s) for s in next_states]).to(self.device)
+        action_tensors = torch.tensor(actions, dtype=torch.long).to(self.device)
+        reward_tensors = torch.tensor(rewards, dtype=torch.float32).to(self.device)
+        done_tensors = torch.tensor(dones, dtype=torch.bool).to(self.device)
+        memory_features_tensors = torch.from_numpy(np.array(memory_features)).float().to(self.device)
+        next_memory_features_tensors = torch.from_numpy(np.array(next_memory_features)).float().to(self.device)
 
-            state_tensor = self.preprocess_state(state)
-            next_state_tensor = self.preprocess_state(next_state)
+        current_q_values = self.q_network(state_tensors, memory_features_tensors).gather(1, action_tensors.unsqueeze(-1))
 
-            if state_tensor is not None and next_state_tensor is not None:
-                states.append(state_tensor)
-                actions.append(action)
-                rewards.append(reward)
-                next_states.append(next_state_tensor)
-                dones.append(done)
-                memory_features_batch.append(memory_features)
-                next_memory_features_batch.append(next_memory_features)
-
-        if len(states) == 0: return None
-
-        # Convert to tensors
-        states = torch.stack(states).to(self.device)
-        actions = torch.tensor(actions, dtype=torch.long).to(self.device)
-        rewards = torch.tensor(rewards, dtype=torch.float32).to(self.device)
-        next_states = torch.stack(next_states).to(self.device)
-        dones = torch.tensor(dones, dtype=torch.bool).to(self.device)
-        memory_features_batch = torch.from_numpy(np.array(memory_features_batch)).float().to(self.device)
-        next_memory_features_batch = torch.from_numpy(np.array(next_memory_features_batch)).float().to(self.device)
-
-        # Current Q values
-        current_actions = self.q_network(states, memory_features_batch)
-        current_q_values = current_actions.gather(1, actions.unsqueeze(1))
-
-        # Next Q values from target network
         with torch.no_grad():
-            next_actions = self.target_network(next_states, next_memory_features_batch)
-            next_q_values = next_actions.max(1)[0]
-            target_q_values = rewards + (self.gamma * next_q_values * ~dones)
+            next_q_values = self.target_network(next_state_tensors, next_memory_features_tensors).max(1)[0]
+            target_q_values = reward_tensors + (self.gamma * next_q_values * ~done_tensors)
 
-        # Action Q-value loss
-        action_loss = nn.MSELoss()(current_q_values.squeeze(), target_q_values)
-        total_loss = action_loss
+        loss = nn.MSELoss()(current_q_values.squeeze(), target_q_values)
 
-        # Optimize
         self.optimizer.zero_grad()
-        total_loss.backward()
+        loss.backward()
         torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 1.0)
         self.optimizer.step()
         self.scheduler.step()
 
-        # Decay epsilon
-        if self.epsilon > self.epsilon_min: self.epsilon *= self.epsilon_decay
-        return total_loss.item()
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
+
+        return loss.item()
 
     def save_model(self, filepath):
         torch.save({
