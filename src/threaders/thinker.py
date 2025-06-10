@@ -23,6 +23,7 @@ class ThinkerThread(threading.Thread):
         self.last_memory_features = None
         self.step_count = 0
         self.episode_reward = 0.0
+        self.current_reward = 0.0
         self.experiences_added = 0
 
     def run(self):
@@ -41,6 +42,7 @@ class ThinkerThread(threading.Thread):
                     if self.last_state is not None and self.last_action is not None:
                         # Calculate reward for the transition
                         reward = self.reward_calc.calculate_reward(self.last_state, current_state)
+                        self.current_reward = reward
                         self.episode_reward += reward
 
                         if not is_transition_state and self.last_state.hp != 999.0:

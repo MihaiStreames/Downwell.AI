@@ -17,7 +17,7 @@ class AIVision:
         cv2.moveWindow(self.window_name, 100, 100)
         cv2.resizeWindow(self.window_name, self.width, self.height)
 
-    def display(self, game_state, q_values):
+    def display(self, game_state, q_values, last_reward=0.0):
         # Create a black canvas
         canvas = np.zeros((self.height, self.width, 3), dtype=np.uint8)
 
@@ -30,6 +30,7 @@ class AIVision:
             xpos_text = f"X Pos: {game_state.xpos:.0f}" if game_state.xpos is not None else "X Pos: N/A"
             ypos_text = f"Y Pos: {game_state.ypos:.0f}" if game_state.ypos is not None else "Y Pos: N/A"
             gem_high_text = f"Gem High: {game_state.gem_high:.0f}" if game_state.gem_high is not None else "Gem High: N/A"
+            reward_text = f"Reward: {last_reward:.2f}"
 
             stats = [
                 hp_text,
@@ -38,7 +39,8 @@ class AIVision:
                 ammo_text,
                 xpos_text,
                 ypos_text,
-                gem_high_text
+                gem_high_text,
+                reward_text
             ]
             for i, text in enumerate(stats):
                 cv2.putText(canvas, text, (10, 25 + i * 22),

@@ -101,7 +101,8 @@ def main():
                 if current_state:
                     # Update AI vision
                     _, q_values = agent.get_action(current_state)
-                    vision.display(current_state, q_values)
+                    last_reward = ai_system.thinker.current_reward if ai_system.thinker else 0.0
+                    vision.display(current_state, q_values, last_reward)
 
                     max_combo = max(max_combo, current_state.combo)
                     final_gems = current_state.gems
