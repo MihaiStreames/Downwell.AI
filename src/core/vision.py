@@ -11,7 +11,7 @@ class AIVision:
         self.window_name = 'AI Vision'
 
         # Action names corresponding to the Q-value indices
-        self.action_names = ['none', 'space', 'right', 'left']
+        self.action_names = ['none', 'jump', 'left', 'right', 'left+jump', 'right+jump']
 
         cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
         cv2.moveWindow(self.window_name, 100, 100)

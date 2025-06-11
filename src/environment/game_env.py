@@ -18,8 +18,10 @@ class CustomDownwellEnvironment:
         self.actions = {
             0: set(),
             1: {'space'},
-            2: {'right'},
-            3: {'left'},
+            2: {'left'},
+            3: {'right'},
+            4: {'left', 'space'},
+            5: {'right', 'space'}
         }
         self.frame_stack = deque(maxlen=self.stack_size)
 

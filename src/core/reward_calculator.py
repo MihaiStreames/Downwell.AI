@@ -1,5 +1,3 @@
-from collections import deque
-
 from config import RewardConfig
 from models.game_state import GameState
 
@@ -10,7 +8,7 @@ class RewardCalculator:
     def __init__(self, config: RewardConfig):
         self.config = config
         self.stagnation_steps = 0
-        self.y_history = deque(maxlen=120)
+        self.max_depth_achieved = 0.0
 
     @staticmethod
     def _detect_level_completion(state: GameState, next_state: GameState) -> bool:
@@ -21,6 +19,7 @@ class RewardCalculator:
 
     def calculate_reward(self, state: GameState, next_state: GameState) -> float:
         if self._detect_level_completion(state, next_state):
+            print(f"🎉 LEVEL COMPLETE! Reward: +{self.config.level_complete_bonus}")
             self.reset_episode()
             return self.config.level_complete_bonus
 
@@ -49,32 +48,31 @@ class RewardCalculator:
         if combo_change > 0: reward += combo_change * self.config.combo_growth_reward
 
         # Movement and Stagnation
-        if state.ypos is not None: self.y_history.append(state.ypos)
+        if state.ypos is not None and next_state.ypos is not None:
+            # 1. Reward for reaching a new depth
+            if next_state.ypos < self.max_depth_achieved:
+                progress = self.max_depth_achieved - next_state.ypos
+                reward += progress * self.config.new_depth_reward
+                self.max_depth_achieved = next_state.ypos
 
-        if state.ypos is not None and next_state.ypos is not None and len(self.y_history) > 0:
-            y_progress = max(self.y_history) - next_state.ypos
+            # 2. Stagnation and Backward penalty
+            y_diff = state.ypos - next_state.ypos
+            x_diff = abs(state.xpos - next_state.xpos) if state.xpos and next_state.xpos else 0
 
-            if y_progress > 2.0:
-                reward += y_progress * self.config.progress_reward
-                self.stagnation_steps = 0
-            elif (state.ypos - next_state.ypos) < -2.0:
+            if y_diff < -2.0:  # Moving up is penalized
                 reward += self.config.backward_penalty
-                self.y_history.clear()
-            else:
-                if state.xpos is not None and next_state.xpos is not None:
-                    x_diff = abs(state.xpos - next_state.xpos)
-                    if x_diff > 1.0:
-                        self.stagnation_steps = 0
-                    else:
-                        self.stagnation_steps += 1
-                else:
-                    self.stagnation_steps = 0
-        else:
-            self.stagnation_steps = 0
 
-        if self.stagnation_steps > self.config.stagnation_threshold: reward += self.config.stagnation_penalty
-        return reward
+            if abs(y_diff) < 1.0 and x_diff < 1.0:  # If not moving much on either axis
+                self.stagnation_steps += 1
+            else:
+                self.stagnation_steps = 0  # Reset if moving
+
+        if self.stagnation_steps > self.config.stagnation_threshold:
+            reward += self.config.stagnation_penalty
+
+        # Clip the reward to prevent extreme values
+        return max(self.config.min_reward_clip, min(reward, self.config.max_reward_clip))
 
     def reset_episode(self):
         self.stagnation_steps = 0
-        self.y_history.clear()
+        self.max_depth_achieved = 0.0

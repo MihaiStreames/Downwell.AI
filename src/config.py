@@ -11,17 +11,22 @@ class RewardConfig:
     health_gain_reward: float = 20.0
 
     # --- Guiding Rewards ---
-    progress_reward: float = 0.01
-    gem_base_reward: float = 1.0
+    new_depth_reward: float = 1.5
+    gem_base_reward: float = 0.5
     combo_growth_reward: float = 5.0
 
     # --- Penalties / Time Pressure ---
-    base_survival: float = -0.05
-    backward_penalty: float = -0.5
+    base_survival: float = -0.01
+    backward_penalty: float = -1.0
     stagnation_penalty: float = -0.05
-    stagnation_threshold: int = 300
+    stagnation_threshold: int = 240
+
+    # --- Clipping ---
+    min_reward_clip: float = -20.0
+    max_reward_clip: float = 20.0
 
     # Disabled for now
+    progress_reward: float = 0.0
     combo_base_reward: float = 0.0
     combo_break_penalty: float = 0.0
     high_combo_bonus: float = 0.0
@@ -38,7 +43,7 @@ class AgentConfig:
     epsilon_decay: float = 0.99995
     train_start: int = 10000
     batch_size: int = 64
-    pretrained_model: str = ""
+    pretrained_model: str = "models/pretrained_agent.pth"
 
 
 @dataclass(frozen=True)

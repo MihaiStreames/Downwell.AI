@@ -5,3 +5,5 @@ Pymem~=1.14.0
 opencv-python~=4.11.0.86
 torch~=2.7.1
 pillow~=11.2.1
+keyboard~=0.13.5
+matplotlib~=3.10.3

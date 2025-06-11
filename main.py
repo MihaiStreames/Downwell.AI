@@ -1,3 +1,4 @@
+import csv
 import os
 import platform
 import time
@@ -77,6 +78,9 @@ def main():
     # AI Vision
     vision = AIVision()
 
+    # Plot training history
+    training_history = []
+
     try:
         while episode < max_episodes:
             episode += 1
@@ -129,6 +133,19 @@ def main():
             print(f"  Epsilon: {agent.epsilon:.4f}")
             print(f"  Learning Rate: {agent.scheduler.get_last_lr()[0]:.6f}")
 
+            # Save episode data
+            episode_data = {
+                'episode': episode,
+                'reward': episode_stats['episode_reward'],
+                'duration': episode_duration,
+                'steps': episode_stats['steps'],
+                'max_combo': max_combo,
+                'final_gems': final_gems,
+                'epsilon': agent.epsilon,
+                'learning_rate': agent.scheduler.get_last_lr()[0]
+            }
+            training_history.append(episode_data)
+
             episode_reward = episode_stats['episode_reward']
             if episode_reward > best_reward:
                 best_reward = episode_reward
@@ -156,6 +173,16 @@ def main():
         if ai_system:
             ai_system.stop()
         vision.close()
+
+        # Save training history
+        if training_history:
+            print("\nSaving training history...")
+            keys = training_history[0].keys()
+            with open('training_history.csv', 'w', newline='') as output_file:
+                dict_writer = csv.DictWriter(output_file, keys)
+                dict_writer.writeheader()
+                dict_writer.writerows(training_history)
+            print("Saved training history to training_history.csv")
 
         # Save final model
         try:

@@ -25,7 +25,7 @@ class DQNAgent:
         self.batch_size = config.batch_size
         self.train_start = config.train_start
 
-        self.memory = deque(maxlen=100)  # This will be overwritten in main.py
+        self.memory = deque(maxlen=500000)
 
         # Neural networks
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -113,6 +113,34 @@ class DQNAgent:
         # Train if we have enough experiences
         if len(self.memory) > self.train_start: return self.replay()
         return None
+
+    def train_on_batch_imitation(self, batch):
+        # Unpack the batch of expert data
+        visual_states = [d['visual_state'] for d in batch]
+        memory_features = np.array([d['memory_features'] for d in batch])
+        expert_actions = [d['action'] for d in batch]
+
+        # Convert data to tensors
+        state_tensors = torch.stack([self.preprocess_state(s) for s in visual_states]).to(self.device)
+        memory_features_tensors = torch.from_numpy(memory_features).float().to(self.device)
+        expert_action_tensors = torch.tensor(expert_actions, dtype=torch.long).to(self.device)
+
+        # Get the model's predicted action scores (logits)
+        predicted_action_logits = self.q_network(state_tensors, memory_features_tensors)
+
+        # Calculate the loss
+        # We use CrossEntropyLoss because we are treating this as a classification problem:
+        # "Given the state, which action class should be chosen?"
+        loss_fn = nn.CrossEntropyLoss()
+        loss = loss_fn(predicted_action_logits, expert_action_tensors)
+
+        # Optimize the model
+        self.optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 1.0)
+        self.optimizer.step()
+
+        return loss.item()
 
     def replay(self):
         if len(self.memory) < self.batch_size: return None
