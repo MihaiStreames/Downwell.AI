@@ -1,4 +1,5 @@
 import csv
+
 import matplotlib.pyplot as plt
 
 
@@ -10,11 +11,11 @@ def plot_training_history(filepath='training_history.csv'):
         with open(filepath, 'r') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
-                episodes.append(int(row['episode']))
+                episodes.append(int(float(row['episode'])))
                 rewards.append(float(row['reward']))
                 durations.append(float(row['duration']))
-                combos.append(int(row['max_combo']))
-                gems.append(int(row['final_gems']))
+                combos.append(int(float(row['max_combo'])))
+                gems.append(int(float(row['final_gems'])))
     except FileNotFoundError:
         print(f"Error: The file '{filepath}' was not found.")
         print("Please run a training session first to generate the history file.")

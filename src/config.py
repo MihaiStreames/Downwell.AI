@@ -43,7 +43,7 @@ class AgentConfig:
     epsilon_decay: float = 0.99995
     train_start: int = 10000
     batch_size: int = 64
-    pretrained_model: str = "models/pretrained_agent.pth"
+    pretrained_model: str = "models/latest.pth"
 
 
 @dataclass(frozen=True)

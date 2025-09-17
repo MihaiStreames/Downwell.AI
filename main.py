@@ -178,7 +178,7 @@ def main():
         if training_history:
             print("\nSaving training history...")
             keys = training_history[0].keys()
-            with open('training_history.csv', 'w', newline='') as output_file:
+            with open('training_history_1.csv', 'w', newline='') as output_file:
                 dict_writer = csv.DictWriter(output_file, keys)
                 dict_writer.writeheader()
                 dict_writer.writerows(training_history)
