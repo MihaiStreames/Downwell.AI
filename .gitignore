@@ -6,6 +6,7 @@ __pycache__
 /.venv
 
 # Data files
-/pointermaps
-*.pkl
 *.pth
+
+# AI within AI >:)
+CLAUDE.md

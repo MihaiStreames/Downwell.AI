@@ -9,11 +9,11 @@ from torch.amp import autocast, GradScaler
 
 from agents.dqn_network import DQN
 from agents.replay import ReplayBuffer
-from config import AgentConfig, EnvConfig
+from config import AgentConfig, EnvConfig, TrainConfig
 
 
 class DQNAgent:
-    def __init__(self, action_space: dict, config: AgentConfig, env_config: EnvConfig):
+    def __init__(self, action_space: dict, config: AgentConfig, env_config: EnvConfig, train_config: TrainConfig):
         self.action_space = action_space
         self.action_size = len(action_space)
 
@@ -32,7 +32,7 @@ class DQNAgent:
 
         # Replay buffer
         self.memory = ReplayBuffer(
-            capacity=500000,
+            capacity=train_config.memory_size,
             state_shape=(env_config.image_size[0], env_config.image_size[1], env_config.frame_stack),
             device=self.device
         )

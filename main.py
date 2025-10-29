@@ -57,7 +57,8 @@ def main():
         agent = DQNAgent(
             action_space=env.actions,
             config=config.agent,
-            env_config=config.env
+            env_config=config.env,
+            train_config=config.training
         )
 
         reward_calc = RewardCalculator(config=config.rewards)

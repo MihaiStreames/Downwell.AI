@@ -34,7 +34,7 @@ class AgentConfig:
 class TrainConfig:
     """Parameters for the main training loop"""
     max_episodes: int = 5000
-    memory_size: int = 500000
+    memory_size: int = 100000
     target_update_frequency: int = 50
     save_frequency: int = 25
 
