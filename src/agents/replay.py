@@ -17,10 +17,8 @@ class ReplayBuffer:
         self.rewards = np.zeros(capacity, dtype=np.float32)
         self.next_states = np.zeros((capacity, *state_shape), dtype=np.uint8)
         self.dones = np.zeros(capacity, dtype=np.bool_)
-        self.memory_features = np.zeros((capacity, 6), dtype=np.float32)
-        self.next_memory_features = np.zeros((capacity, 6), dtype=np.float32)
 
-    def add(self, state, action, reward, next_state, done, memory_features, next_memory_features):
+    def add(self, state, action, reward, next_state, done):
         """Add experience"""
         idx = self.position
 
@@ -29,8 +27,6 @@ class ReplayBuffer:
         self.rewards[idx] = reward
         self.next_states[idx] = next_state
         self.dones[idx] = done
-        self.memory_features[idx] = memory_features
-        self.next_memory_features[idx] = next_memory_features
 
         self.position = (self.position + 1) % self.capacity
         self.size = min(self.size + 1, self.capacity)
@@ -49,9 +45,7 @@ class ReplayBuffer:
             torch.from_numpy(self.actions[indices]).to(self.device, non_blocking=True),
             torch.from_numpy(self.rewards[indices]).to(self.device, non_blocking=True),
             torch.from_numpy(self.next_states[indices]).to(self.device, non_blocking=True),
-            torch.from_numpy(self.dones[indices]).to(self.device, non_blocking=True),
-            torch.from_numpy(self.memory_features[indices]).to(self.device, non_blocking=True),
-            torch.from_numpy(self.next_memory_features[indices]).to(self.device, non_blocking=True)
+            torch.from_numpy(self.dones[indices]).to(self.device, non_blocking=True)
         )
 
         return batch

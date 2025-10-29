@@ -40,14 +40,12 @@ class DQNAgent:
         # Networks
         self.q_network = DQN(
             input_channels=env_config.frame_stack,
-            num_actions=self.action_size,
-            memory_features=6
+            num_actions=self.action_size
         ).to(self.device)
 
         self.target_network = DQN(
             input_channels=env_config.frame_stack,
-            num_actions=self.action_size,
-            memory_features=6
+            num_actions=self.action_size
         ).to(self.device)
 
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.learning_rate, eps=1e-8)
@@ -69,31 +67,12 @@ class DQNAgent:
     def update_target_network(self):
         self.target_network.load_state_dict(self.q_network.state_dict())
 
-    def remember(self, state, action, reward, next_state, done, memory_features, next_memory_features):
-        self.memory.add(state, action, reward, next_state, done, memory_features, next_memory_features)
-
-    @staticmethod
-    def extract_memory_features(game_state):
-        if game_state is None: return np.zeros(6, dtype=np.float32)
-
-        hp = 8.0 if (game_state.hp is None or game_state.hp == 999.0) else game_state.hp
-        xpos = 0.0 if game_state.xpos is None else game_state.xpos
-        ypos = 0.0 if game_state.ypos is None else game_state.ypos
-
-        return np.array([
-            hp,
-            game_state.gems,
-            game_state.combo,
-            xpos,
-            ypos,
-            game_state.ammo
-        ], dtype=np.float32)
+    def remember(self, state, action, reward, next_state, done):
+        self.memory.add(state, action, reward, next_state, done)
 
     def get_action(self, game_state):
         if game_state is None:
             return random.randrange(self.action_size), np.zeros(self.action_size)
-
-        memory_features = self.extract_memory_features(game_state)
 
         if random.uniform(0, 1) <= self.epsilon:
             return random.randrange(self.action_size), np.zeros(self.action_size)
@@ -104,16 +83,14 @@ class DQNAgent:
 
         # Direct tensor conversion
         state_tensor = torch.from_numpy(state).permute(2, 0, 1).unsqueeze(0).to(self.device, non_blocking=True)
-        memory_tensor = torch.from_numpy(memory_features).unsqueeze(0).to(self.device, non_blocking=True)
 
         with torch.no_grad():
-            actions = self.q_network(state_tensor, memory_tensor)
+            actions = self.q_network(state_tensor)
 
         return torch.argmax(actions).item(), actions.cpu().numpy().flatten()
 
-    def train(self, state, action, reward, next_state, done, memory_features, next_memory_features):
-        self.remember(state.screenshot, action, reward, next_state.screenshot, done, memory_features,
-                      next_memory_features)
+    def train(self, state, action, reward, next_state, done):
+        self.remember(state.screenshot, action, reward, next_state.screenshot, done)
 
         if len(self.memory) >= self.train_start:
             return self.replay()
@@ -127,8 +104,7 @@ class DQNAgent:
         if batch is None:
             return None
 
-        state_tensors, action_tensors, reward_tensors, next_state_tensors, \
-            done_tensors, memory_features_tensors, next_memory_features_tensors = batch
+        state_tensors, action_tensors, reward_tensors, next_state_tensors, done_tensors = batch
 
         # Preprocess: permute from (B, H, W, C) to (B, C, H, W)
         state_tensors = state_tensors.permute(0, 3, 1, 2)
@@ -137,13 +113,13 @@ class DQNAgent:
         # Mixed precision forward pass
         with autocast("cuda"):
             # Current Q-values
-            current_q_values = self.q_network(state_tensors, memory_features_tensors).gather(
+            current_q_values = self.q_network(state_tensors).gather(
                 1, action_tensors.unsqueeze(-1)
             )
 
             # Target Q-values
             with torch.no_grad():
-                next_q_values = self.target_network(next_state_tensors, next_memory_features_tensors).max(1)[0]
+                next_q_values = self.target_network(next_state_tensors).max(1)[0]
                 target_q_values = reward_tensors + (self.gamma * next_q_values * ~done_tensors)
 
             # Loss

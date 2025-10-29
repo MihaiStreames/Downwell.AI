@@ -20,7 +20,6 @@ class ThinkerThread(threading.Thread):
         # Learning state tracking
         self.last_state = None
         self.last_action = None
-        self.last_memory_features = None
         self.step_count = 0
         self.episode_reward = 0.0
         self.current_reward = 0.0
@@ -36,7 +35,6 @@ class ThinkerThread(threading.Thread):
 
                 if current_state and current_state.screenshot is not None:
                     self.step_count += 1
-                    current_memory_features = self.agent.extract_memory_features(current_state)
                     is_transition_state = current_state.hp == 999.0
 
                     if self.last_state is not None and self.last_action is not None:
@@ -53,9 +51,7 @@ class ThinkerThread(threading.Thread):
                                 self.last_action.action_type,
                                 reward,
                                 current_state,
-                                done,
-                                self.last_memory_features,
-                                current_memory_features
+                                done
                             )
                             self.experiences_added += 1
 
@@ -70,7 +66,6 @@ class ThinkerThread(threading.Thread):
                     # Update tracking
                     self.last_state = current_state
                     self.last_action = action_cmd
-                    self.last_memory_features = current_memory_features
 
             except Exception as e:
                 print(f"Thinker error: {e}")
@@ -93,7 +88,6 @@ class ThinkerThread(threading.Thread):
         self.step_count = 0
         self.last_state = None
         self.last_action = None
-        self.last_memory_features = None
 
         return stats
 

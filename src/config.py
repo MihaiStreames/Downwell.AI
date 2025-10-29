@@ -4,33 +4,17 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class RewardConfig:
     """Weights and parameters for the reward function"""
-    # --- Core Events ---
+    # Core events
     level_complete_bonus: float = 100.0
-    death_penalty: float = -100.0
-    health_loss_penalty: float = -10.0
-    health_gain_reward: float = 20.0
+    death_penalty: float = -10.0
 
-    # --- Guiding Rewards ---
-    new_depth_reward: float = 1.5
-    gem_base_reward: float = 0.5
-    combo_growth_reward: float = 5.0
+    # Simple guidance
+    depth_reward: float = 0.5
+    survival_reward: float = 0.01
 
-    # --- Penalties / Time Pressure ---
-    base_survival: float = -0.01
-    backward_penalty: float = -1.0
-    stagnation_penalty: float = -0.05
-    stagnation_threshold: int = 240
-
-    # --- Clipping ---
+    # Clipping
     min_reward_clip: float = -20.0
     max_reward_clip: float = 20.0
-
-    # Disabled for now
-    progress_reward: float = 0.0
-    combo_base_reward: float = 0.0
-    combo_break_penalty: float = 0.0
-    high_combo_bonus: float = 0.0
-    gem_high_multiplier: float = 1.0
 
 
 @dataclass(frozen=True)

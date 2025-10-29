@@ -9,3 +9,4 @@ keyboard~=0.13.5
 matplotlib~=3.10.3
 mss~=10.1.0
 pywin32~=311
+loguru~=0.7.3
