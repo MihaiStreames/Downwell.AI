@@ -2,7 +2,6 @@ import csv
 import os
 import platform
 import time
-from collections import deque
 
 import pymem
 from pymem.process import module_from_name
@@ -60,7 +59,7 @@ def main():
             config=config.agent,
             env_config=config.env
         )
-        agent.memory = deque(maxlen=config.training.memory_size)
+
         reward_calc = RewardCalculator(config=config.rewards)
         ai_system = DownwellAI(player, env, agent, reward_calc, config=config.env)
 
@@ -128,8 +127,7 @@ def main():
             print(f"  Steps: {episode_stats['steps']}")
             print(f"  Max Combo: {max_combo:.0f}")
             print(f"  Final Gems: {final_gems:.0f}")
-            print(
-                f"  Experiences: +{episode_stats['experiences_added']} (total: {len(agent.memory)}/{agent.memory.maxlen})")
+            print(f"  Experiences: +{episode_stats['experiences_added']} (total: {len(agent.memory)}/{agent.memory.capacity})")
             print(f"  Epsilon: {agent.epsilon:.4f}")
             print(f"  Learning Rate: {agent.scheduler.get_last_lr()[0]:.6f}")
 
@@ -178,7 +176,7 @@ def main():
         if training_history:
             print("\nSaving training history...")
             keys = training_history[0].keys()
-            with open('training_history_1.csv', 'w', newline='') as output_file:
+            with open('training_history.csv', 'w', newline='') as output_file:
                 dict_writer = csv.DictWriter(output_file, keys)
                 dict_writer.writeheader()
                 dict_writer.writerows(training_history)

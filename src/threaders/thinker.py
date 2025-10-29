@@ -62,12 +62,12 @@ class ThinkerThread(threading.Thread):
                             if loss is not None and self.step_count % 100 == 0:
                                 print(f"Step {self.step_count}: Loss = {loss:.4f}, Reward = {reward:.2f}")
 
-                    # Make decision for current state
+                    # Make decision
                     action, q_values = self.agent.get_action(current_state)
                     action_cmd = Action(action_type=action, frame_id=current_state.frame_id)
                     self.action_queue.put(action_cmd)
 
-                    # Update tracking variables
+                    # Update tracking
                     self.last_state = current_state
                     self.last_action = action_cmd
                     self.last_memory_features = current_memory_features

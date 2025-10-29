@@ -4,8 +4,6 @@ import time
 
 import pyautogui
 
-from models.action import Action
-
 
 class ActorThread(threading.Thread):
     """Executes actions without blocking perception"""

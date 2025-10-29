@@ -36,13 +36,13 @@ class RewardConfig:
 @dataclass(frozen=True)
 class AgentConfig:
     """Hyperparameters for the DQN Agent"""
-    learning_rate: float = 0.0005
+    learning_rate: float = 0.0001
     gamma: float = 0.99
     epsilon_start: float = 1.0
-    epsilon_min: float = 0.05
-    epsilon_decay: float = 0.99995
-    train_start: int = 10000
-    batch_size: int = 64
+    epsilon_min: float = 0.1
+    epsilon_decay: float = 0.999985
+    train_start: int = 5000
+    batch_size: int = 128
     pretrained_model: str = "models/latest.pth"
 
 
@@ -51,7 +51,7 @@ class TrainConfig:
     """Parameters for the main training loop"""
     max_episodes: int = 5000
     memory_size: int = 500000
-    target_update_frequency: int = 100
+    target_update_frequency: int = 50
     save_frequency: int = 25
 
 

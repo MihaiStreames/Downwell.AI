@@ -8,6 +8,7 @@ import pyautogui
 import pygetwindow as gw
 
 from config import EnvConfig
+from environment.capture import ScreenCapture
 
 
 class CustomDownwellEnvironment:
@@ -24,6 +25,9 @@ class CustomDownwellEnvironment:
             5: {'right', 'space'}
         }
         self.frame_stack = deque(maxlen=self.stack_size)
+
+        self.capture_engine = ScreenCapture()
+        self._capture_configured = False
 
     def window_exists(self) -> bool:
         windows = gw.getWindowsWithTitle('Downwell')
@@ -64,25 +68,26 @@ class CustomDownwellEnvironment:
         try:
             left, top, width, height = self.get_game_window_dimensions()
 
-            import PIL.ImageGrab as ImageGrab
-            screenshot = ImageGrab.grab(bbox=(left, top, left + width, top + height))
+            # Configure capture region on first call or if window moved
+            if not self._capture_configured:
+                self.capture_engine.set_region(left, top, width, height)
+                self._capture_configured = True
 
-            # Convert to numpy array
-            frame = np.array(screenshot, dtype=np.uint8)
-            if frame.shape[2] == 4:
-                frame = frame[:, :, :3]
+            frame = self.capture_engine.capture()
 
             cropped_frame = self.crop_game_area(frame)
             processed_frame = self._preprocess_frame(cropped_frame)
             self.frame_stack.append(processed_frame)
 
             # Ensure the stack is full before returning a state
-            if len(self.frame_stack) < self.stack_size: return None
+            if len(self.frame_stack) < self.stack_size:
+                return None
 
             state = np.stack(self.frame_stack, axis=2)
             return state
         except Exception as e:
             print(f"Screenshot error: {e}")
+            self._capture_configured = False
             return None
 
     @staticmethod
