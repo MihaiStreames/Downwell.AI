@@ -61,7 +61,7 @@ class DQNAgent:
         print(f"  Gamma: {self.gamma}")
         print(f"  Memory: {self.memory.capacity:,}")
         print(f"  Batch size: {self.batch_size}")
-        print(f"  Training starts: {self.train_start:,} experiences")
+        print(f"  Training starts: {self.train_start:,}")
         print(f"  Epsilon: {self.epsilon:.3f} → {self.epsilon_min:.3f}")
 
     def update_target_network(self):
@@ -123,14 +123,14 @@ class DQNAgent:
                 target_q_values = reward_tensors + (self.gamma * next_q_values * ~done_tensors)
 
             # Loss
-            loss = nn.MSELoss()(current_q_values.squeeze(), target_q_values)
+            loss = nn.SmoothL1Loss()(current_q_values.squeeze(), target_q_values)
 
         # Backward pass with gradient scaling
         self.optimizer.zero_grad()
         self.scaler.scale(loss).backward()
         self.scaler.unscale_(self.optimizer)
 
-        torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 1.0)
+        torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 10.0)
 
         self.scaler.step(self.optimizer)
         self.scaler.update()

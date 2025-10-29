@@ -26,7 +26,7 @@ def get_game_module(proc, executable_name):
 def main():
     config = AppConfig()
 
-    print("Starting Downwell.AI v2.0 - Vision Only")
+    print("Starting Downwell.AI v1.0")
     print("=" * 50)
 
     os.makedirs("models", exist_ok=True)

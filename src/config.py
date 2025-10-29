@@ -27,7 +27,7 @@ class AgentConfig:
     epsilon_decay: float = 0.999985
     train_start: int = 5000
     batch_size: int = 128
-    pretrained_model: str = "models/latest.pth"
+    pretrained_model: str = "models/downwell_ai_best.pth"
 
 
 @dataclass(frozen=True)
