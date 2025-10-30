@@ -1,6 +1,6 @@
 # Downwell.AI
 
-This is a side project I'm working on while learning about AI at university. I'm trying teach a DQN (Deep Q-Network) agent how to
+This is a side project I'm working on while learning about AI at university. I'm trying to teach a DQN (Deep Q-Network) agent how to
 play Downwell.
 
 ## Overview
