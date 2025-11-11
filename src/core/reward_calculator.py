@@ -1,5 +1,3 @@
-from loguru import logger
-
 from config import RewardConfig
 from models.game_state import GameState
 
@@ -20,10 +18,33 @@ class RewardCalculator:
         player_is_in_menu = next_state.xpos is None or next_state.hp is None
         return player_was_in_well and player_is_in_menu
 
+    @staticmethod
+    def calculate_boundary_penalty(xpos: float) -> float:
+        """Calculate penalty based on proximity to boundaries."""
+        if xpos is None:
+            return 0.0
+
+        # Safe zone
+        if 172 <= xpos <= 308:
+            return 0.0
+
+        # Out of bounds
+        if xpos < 172:
+            # Left out of bounds
+            distance_out = 172 - xpos
+            return -1.0 * (1 + distance_out * 0.1)
+
+        elif xpos > 308:
+            # Right out of bounds
+            distance_out = xpos - 308
+            return -1.0 * (1 + distance_out * 0.1)
+
+        return 0.0
+
     def calculate_reward(self, state: GameState, next_state: GameState) -> float:
+        """Calculate reward based on game states."""
         # Level completion bonus
         if self._detect_level_completion(state, next_state):
-            logger.debug(f"LEVEL COMPLETE! Reward: +{self.config.level_complete_bonus}")
             self.reset_episode()
             return self.config.level_complete_bonus
 
@@ -53,15 +74,13 @@ class RewardCalculator:
             if damage_taken > 0:
                 damage_penalty = damage_taken * self.config.damage_penalty
                 reward += damage_penalty
-                logger.debug(
-                    f"Took {damage_taken:.0f} damage! Penalty: {damage_penalty:.2f}"
-                )
 
         # Update HP tracking
         self.last_hp = next_state.hp
 
-        # Small survival reward to encourage staying alive
-        reward += self.config.survival_reward
+        # Boundary penalty
+        boundary_penalty = self.calculate_boundary_penalty(next_state.xpos)
+        reward += boundary_penalty
 
         # Clip the reward
         return max(

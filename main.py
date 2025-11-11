@@ -95,7 +95,7 @@ def run_episode(
     episode_num: int, components: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
     """Run a single training episode."""
-    logger.info(f"--- Episode {episode_num} ---")
+    logger.info(f"Episode {episode_num}")
 
     env = components["env"]
     player = components["player"]
@@ -129,7 +129,7 @@ def run_episode(
             final_gems = current_state.gems
 
             if current_state.hp <= 0:
-                logger.info("Episode ended - Game Over!")
+                logger.info("Episode ended")
                 time.sleep(0.3)
                 break
 
@@ -157,16 +157,14 @@ def log_episode_summary(
 ) -> None:
     """Log episode summary information."""
     logger.info(f"Episode {episode_num} Summary:")
-    logger.info(f"  Reward: {stats['episode_reward']:.1f}")
-    logger.info(f"  Duration: {stats['duration']:.1f}s")
-    logger.info(f"  Steps: {stats['steps']}")
-    logger.info(f"  Max Combo: {stats['max_combo']:.0f}")
-    logger.info(f"  Final Gems: {stats['final_gems']:.0f}")
-    logger.info(
-        f"  Experiences: +{stats['experiences_added']} (total: {len(agent.memory)}/{agent.memory.capacity})"
-    )
-    logger.info(f"  Epsilon: {stats['epsilon']:.4f}")
-    logger.info(f"  Learning Rate: {stats['learning_rate']:.6f}")
+    logger.info(f"Reward: {stats['episode_reward']:.1f}")
+    logger.info(f"Duration: {stats['duration']:.1f}s")
+    logger.info(f"Steps: {stats['steps']}")
+    logger.info(f"Max Combo: {stats['max_combo']:.0f}")
+    logger.info(f"Final Gems: {stats['final_gems']:.0f}")
+    logger.info(f"Experiences: +{stats['experiences_added']} (total: {len(agent.memory)}/{agent.memory.capacity})")
+    logger.info(f"Epsilon: {stats['epsilon']:.4f}")
+    logger.info(f"Learning Rate: {stats['learning_rate']:.6f}")
 
 
 def save_episode_data(episode_num: int, stats: Dict[str, Any]) -> Dict[str, Any]:
@@ -194,19 +192,19 @@ def handle_checkpoints(
     # Check for new best
     if episode_reward > best_reward:
         best_reward = episode_reward
-        logger.success(f"  NEW BEST: {best_reward:.2f}")
+        logger.success(f"NEW BEST: {best_reward:.2f}")
         agent.save_model("models/downwell_ai_best.pth")
 
     # Periodic save
     if episode_num % config.training.save_frequency == 0:
         model_path = f"models/downwell_ai_{episode_num}.pth"
         agent.save_model(model_path)
-        logger.info(f"  Model saved: {model_path}")
+        logger.info(f"Model saved: {model_path}")
 
     # Target network update
     if episode_num % config.training.target_update_frequency == 0:
         agent.update_target_network()
-        logger.info("  Target network updated")
+        logger.info(" Target network updated")
 
     return best_reward
 
