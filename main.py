@@ -95,7 +95,7 @@ def run_episode(
     episode_num: int, components: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
     """Run a single training episode."""
-    logger.info(f"\n--- Episode {episode_num} ---")
+    logger.info(f"--- Episode {episode_num} ---")
 
     env = components["env"]
     player = components["player"]
@@ -156,7 +156,7 @@ def log_episode_summary(
     episode_num: int, stats: Dict[str, Any], agent: DQNAgent
 ) -> None:
     """Log episode summary information."""
-    logger.info(f"\nEpisode {episode_num} Summary:")
+    logger.info(f"Episode {episode_num} Summary:")
     logger.info(f"  Reward: {stats['episode_reward']:.1f}")
     logger.info(f"  Duration: {stats['duration']:.1f}s")
     logger.info(f"  Steps: {stats['steps']}")
@@ -216,7 +216,7 @@ def save_training_history(training_history: List[Dict[str, Any]]) -> None:
     if not training_history:
         return
 
-    logger.info("\nSaving training history...")
+    logger.info("Saving training history...")
     keys = training_history[0].keys()
     with open("training_history.csv", "w", newline="") as output_file:
         dict_writer = csv.DictWriter(output_file, keys)
@@ -232,7 +232,7 @@ def cleanup(
     best_reward: float,
 ) -> None:
     """Clean up resources and save final state."""
-    logger.info("\nCleaning up...")
+    logger.info("Cleaning up...")
 
     # Stop AI system and close vision
     if components:
@@ -292,9 +292,9 @@ def training_loop(components: Dict[str, Any], config: AppConfig) -> None:
             )
 
     except KeyboardInterrupt:
-        logger.warning("\n\nTraining interrupted by user")
+        logger.warning("Training interrupted by user")
     except Exception as e:
-        logger.exception(f"\nTraining error: {e}")
+        logger.exception(f"Training error: {e}")
     finally:
         cleanup(components, training_history, episode, best_reward)
 

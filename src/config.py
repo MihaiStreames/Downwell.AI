@@ -16,12 +16,6 @@ class RewardConfig:
     # Damage penalty
     damage_penalty: float = -0.5
 
-    # Immobility penalties
-    immobility_grace_period: int = 60
-    immobility_base_penalty: float = 0.01
-    immobility_growth_rate: float = 1.05
-    immobility_max_penalty: float = 5.0
-
     # Clipping
     min_reward_clip: float = -20.0
     max_reward_clip: float = 20.0

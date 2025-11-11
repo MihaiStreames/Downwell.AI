@@ -10,8 +10,6 @@ class RewardCalculator:
     def __init__(self, config: RewardConfig):
         self.config = config
         self.max_depth_achieved = 0.0
-        self.steps_without_progress = 0
-        self.last_progress_depth = 0.0
         self.last_hp = None
 
     @staticmethod
@@ -49,48 +47,18 @@ class RewardCalculator:
                 reward += progress * self.config.depth_reward
                 self.max_depth_achieved = next_state.ypos
 
-                # Reset immobility counter on progress
-                self.steps_without_progress = 0
-                self.last_progress_depth = next_state.ypos
-            else:
-                # No progress made, increment counter
-                self.steps_without_progress += 1
-
         # Damage penalty
         if self.last_hp is not None and next_state.hp is not None:
             damage_taken = self.last_hp - next_state.hp
             if damage_taken > 0:
-                # Apply penalty based on amount of damage
                 damage_penalty = damage_taken * self.config.damage_penalty
-                reward += damage_penalty  # This is negative
+                reward += damage_penalty
                 logger.debug(
                     f"Took {damage_taken:.0f} damage! Penalty: {damage_penalty:.2f}"
                 )
 
         # Update HP tracking
         self.last_hp = next_state.hp
-
-        # Exponential immobility penalty that increases the longer you don't progress
-        if self.steps_without_progress > self.config.immobility_grace_period:
-            # Exponential penalty after grace period
-            steps_stagnant = (
-                self.steps_without_progress - self.config.immobility_grace_period
-            )
-            immobility_penalty = -self.config.immobility_base_penalty * (
-                self.config.immobility_growth_rate**steps_stagnant
-            )
-
-            # Cap the penalty to prevent it from becoming too extreme
-            immobility_penalty = max(
-                immobility_penalty, -self.config.immobility_max_penalty
-            )
-            reward += immobility_penalty
-
-            # Log every 30 steps of immobility
-            if self.steps_without_progress % 30 == 0:
-                logger.debug(
-                    f"No progress for {self.steps_without_progress} steps! Penalty: {immobility_penalty:.2f}"
-                )
 
         # Small survival reward to encourage staying alive
         reward += self.config.survival_reward
@@ -102,6 +70,4 @@ class RewardCalculator:
 
     def reset_episode(self):
         self.max_depth_achieved = 0.0
-        self.steps_without_progress = 0
-        self.last_progress_depth = 0.0
         self.last_hp = None
