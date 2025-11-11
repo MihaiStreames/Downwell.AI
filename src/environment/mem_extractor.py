@@ -1,5 +1,6 @@
 import platform
 
+from loguru import logger
 from pymem.process import *
 
 from utils.game_attributes import *
@@ -12,13 +13,14 @@ class Player:
         self.game_module = game_module
         self.attr = PLAYER_PTR
 
-        if self.os != "Windows": raise NotImplementedError("Currently only Windows is supported")
+        if self.os != "Windows":
+            raise NotImplementedError("Only Windows is supported")
 
     def is_gem_high(self) -> bool:
-        if self.get_value('gemHigh') is None:
-            print("Failed to read gemHigh value")
+        if self.get_value("gemHigh") is None:
+            logger.debug("Failed to read gemHigh value")
             return False
-        return self.get_value('gemHigh') >= 100
+        return self.get_value("gemHigh") >= 100
 
     def get_ptr_addr(self, base: int, offsets: list) -> int:
         try:
@@ -31,16 +33,16 @@ class Player:
 
     def get_type(self, attr_type: str, address: int):
         try:
-            return getattr(self.pc, f'read_{attr_type}')(address)
+            return getattr(self.pc, f"read_{attr_type}")(address)
         except AttributeError:
-            print(f"Unknown type: {attr_type}")
+            logger.error(f"Unknown type: {attr_type}")
             return None
         except pymem.exception.MemoryReadError as e:
             raise e
 
     def get_value(self, attribute: str):
         if attribute not in self.attr:
-            print(f"Unknown attribute: {attribute}")
+            logger.error(f"Unknown attribute: {attribute}")
             return None
 
         attr_data = self.attr[attribute]
@@ -59,14 +61,14 @@ class Player:
             except pymem.exception.MemoryReadError:
                 continue
 
-        print(f"Failed to read {attribute} from all available addresses")
+        logger.debug(f"Failed to read {attribute} from all available addresses")
         return None
 
     def validate_connection(self) -> bool:
         try:
             # Attempt to read a known value to check connection
-            self.get_value('hp')
+            self.get_value("hp")
             return True
         except Exception as e:
-            print(f"Lost connection to game process: {e}")
+            logger.error(f"Lost connection to game process: {e}")
             return False

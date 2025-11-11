@@ -14,18 +14,13 @@ class ScreenCapture:
 
     def _get_sct(self):
         """Get or create MSS instance for current thread"""
-        if not hasattr(self._thread_local, 'sct'):
+        if not hasattr(self._thread_local, "sct"):
             self._thread_local.sct = mss()
         return self._thread_local.sct
 
     def set_region(self, left, top, width, height):
         """Configure capture region"""
-        self.monitor = {
-            "top": top,
-            "left": left,
-            "width": width,
-            "height": height
-        }
+        self.monitor = {"top": top, "left": left, "width": width, "height": height}
         self._last_bbox = (left, top, width, height)
 
     def capture(self):
@@ -41,7 +36,7 @@ class ScreenCapture:
 
     def __del__(self):
         """Cleanup"""
-        if hasattr(self, '_thread_local') and hasattr(self._thread_local, 'sct'):
+        if hasattr(self, "_thread_local") and hasattr(self._thread_local, "sct"):
             try:
                 self._thread_local.sct.close()
             except:

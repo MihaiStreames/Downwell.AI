@@ -3,6 +3,7 @@ import threading
 import time
 
 import pyautogui
+from loguru import logger
 
 
 class ActorThread(threading.Thread):
@@ -38,7 +39,7 @@ class ActorThread(threading.Thread):
             except queue.Empty:
                 time.sleep(0.001)  # Sleep briefly if no new action
             except Exception as e:
-                print(f"Actor error: {e}")
+                logger.error(f"Actor error: {e}")
 
     def stop(self):
         # When stopping, release all keys that are currently pressed

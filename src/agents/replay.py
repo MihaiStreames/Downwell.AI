@@ -44,8 +44,10 @@ class ReplayBuffer:
             torch.from_numpy(self.states[indices]).to(self.device, non_blocking=True),
             torch.from_numpy(self.actions[indices]).to(self.device, non_blocking=True),
             torch.from_numpy(self.rewards[indices]).to(self.device, non_blocking=True),
-            torch.from_numpy(self.next_states[indices]).to(self.device, non_blocking=True),
-            torch.from_numpy(self.dones[indices]).to(self.device, non_blocking=True)
+            torch.from_numpy(self.next_states[indices]).to(
+                self.device, non_blocking=True
+            ),
+            torch.from_numpy(self.dones[indices]).to(self.device, non_blocking=True),
         )
 
         return batch

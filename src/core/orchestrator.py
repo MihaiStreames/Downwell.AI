@@ -35,7 +35,7 @@ class DownwellAI:
             self.player,
             self.env,
             self.state_buffer,
-            perception_fps=self.config.perceptor_fps
+            perception_fps=self.config.perceptor_fps,
         )
         self.thinker = ThinkerThread(
             self.agent,
@@ -43,12 +43,9 @@ class DownwellAI:
             self.state_buffer,
             self.action_queue,
             self.perceptor.lock,
-            decision_fps=self.config.thinker_fps
+            decision_fps=self.config.thinker_fps,
         )
-        self.actor = ActorThread(
-            self.env,
-            self.action_queue
-        )
+        self.actor = ActorThread(self.env, self.action_queue)
 
     def start(self):
         self.create_threads()
@@ -60,9 +57,12 @@ class DownwellAI:
         self.reward_calc.reset_episode()
 
     def stop(self):
-        if self.perceptor: self.perceptor.stop()
-        if self.thinker: self.thinker.stop()
-        if self.actor: self.actor.stop()
+        if self.perceptor:
+            self.perceptor.stop()
+        if self.thinker:
+            self.thinker.stop()
+        if self.actor:
+            self.actor.stop()
         # Wait for threads to finish
         time.sleep(0.2)
 
@@ -73,9 +73,6 @@ class DownwellAI:
         return None
 
     def get_episode_stats(self):
-        if self.thinker: return self.thinker.get_episode_stats()
-        return {
-            'episode_reward': 0.0,
-            'experiences_added': 0,
-            'steps': 0
-        }
+        if self.thinker:
+            return self.thinker.get_episode_stats()
+        return {"episode_reward": 0.0, "experiences_added": 0, "steps": 0}

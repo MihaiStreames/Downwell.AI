@@ -8,10 +8,10 @@ class AIVision:
     def __init__(self, width=300, height=250):
         self.width = width
         self.height = height
-        self.window_name = 'AI Vision'
+        self.window_name = "AI Vision"
 
         # Action names corresponding to the Q-value indices
-        self.action_names = ['none', 'jump', 'left', 'right', 'left+jump', 'right+jump']
+        self.action_names = ["none", "jump", "left", "right", "left+jump", "right+jump"]
 
         cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
         cv2.moveWindow(self.window_name, 100, 100)
@@ -21,15 +21,41 @@ class AIVision:
         # Create a black canvas
         canvas = np.zeros((self.height, self.width, 3), dtype=np.uint8)
 
-        # --- Display Game State Info ---
+        # Game State Info
         if game_state:
-            hp_text = f"HP: {game_state.hp:.0f}" if game_state.hp is not None else "HP: N/A"
-            gems_text = f"Gems: {game_state.gems:.0f}" if game_state.gems is not None else "Gems: N/A"
-            combo_text = f"Combo: {game_state.combo:.0f}" if game_state.combo is not None else "Combo: N/A"
-            ammo_text = f"Ammo: {game_state.ammo:.0f}" if game_state.ammo is not None else "Ammo: N/A"
-            xpos_text = f"X Pos: {game_state.xpos:.0f}" if game_state.xpos is not None else "X Pos: N/A"
-            ypos_text = f"Y Pos: {game_state.ypos:.0f}" if game_state.ypos is not None else "Y Pos: N/A"
-            gem_high_text = f"Gem High: {game_state.gem_high:.0f}" if game_state.gem_high is not None else "Gem High: N/A"
+            hp_text = (
+                f"HP: {game_state.hp:.0f}" if game_state.hp is not None else "HP: N/A"
+            )
+            gems_text = (
+                f"Gems: {game_state.gems:.0f}"
+                if game_state.gems is not None
+                else "Gems: N/A"
+            )
+            combo_text = (
+                f"Combo: {game_state.combo:.0f}"
+                if game_state.combo is not None
+                else "Combo: N/A"
+            )
+            ammo_text = (
+                f"Ammo: {game_state.ammo:.0f}"
+                if game_state.ammo is not None
+                else "Ammo: N/A"
+            )
+            xpos_text = (
+                f"X Pos: {game_state.xpos:.0f}"
+                if game_state.xpos is not None
+                else "X Pos: N/A"
+            )
+            ypos_text = (
+                f"Y Pos: {game_state.ypos:.0f}"
+                if game_state.ypos is not None
+                else "Y Pos: N/A"
+            )
+            gem_high_text = (
+                f"Gem High: {game_state.gem_high:.0f}"
+                if game_state.gem_high is not None
+                else "Gem High: N/A"
+            )
             reward_text = f"Reward: {last_reward:.2f}"
 
             stats = [
@@ -40,13 +66,20 @@ class AIVision:
                 xpos_text,
                 ypos_text,
                 gem_high_text,
-                reward_text
+                reward_text,
             ]
             for i, text in enumerate(stats):
-                cv2.putText(canvas, text, (10, 25 + i * 22),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                cv2.putText(
+                    canvas,
+                    text,
+                    (10, 25 + i * 22),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    (255, 255, 255),
+                    1,
+                )
 
-        # --- Display Q-Value Bars ---
+        # Q-Value Bars
         if q_values is not None and len(q_values) > 0:
             # Normalize Q-values for consistent bar height
             max_q = max(q_values) if max(q_values) > 0 else 1.0
@@ -66,11 +99,24 @@ class AIVision:
 
                 y_pos = 25 + i * 22
                 # Draw the bar
-                cv2.rectangle(canvas, (bar_x_start, y_pos - 12), (bar_x_start + bar_width, y_pos), color, -1)
+                cv2.rectangle(
+                    canvas,
+                    (bar_x_start, y_pos - 12),
+                    (bar_x_start + bar_width, y_pos),
+                    color,
+                    -1,
+                )
                 # Draw the text label
                 text = f"{self.action_names[i]}: {q_val:.2f}"
-                cv2.putText(canvas, text, (bar_x_start, y_pos - 2),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+                cv2.putText(
+                    canvas,
+                    text,
+                    (bar_x_start, y_pos - 2),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.4,
+                    (255, 255, 255),
+                    1,
+                )
 
         # Show the canvas
         cv2.imshow(self.window_name, canvas)

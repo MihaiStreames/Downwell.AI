@@ -1,11 +1,13 @@
+# game_env.py
 import time
 from collections import deque
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 import cv2
 import numpy as np
 import pyautogui
 import pygetwindow as gw
+from loguru import logger
 
 from config import EnvConfig
 from environment.capture import ScreenCapture
@@ -18,11 +20,11 @@ class CustomDownwellEnvironment:
         self.stack_size = config.frame_stack
         self.actions = {
             0: set(),
-            1: {'space'},
-            2: {'left'},
-            3: {'right'},
-            4: {'left', 'space'},
-            5: {'right', 'space'}
+            1: {"space"},
+            2: {"left"},
+            3: {"right"},
+            4: {"left", "space"},
+            5: {"right", "space"},
         }
         self.frame_stack = deque(maxlen=self.stack_size)
 
@@ -30,13 +32,13 @@ class CustomDownwellEnvironment:
         self._capture_configured = False
 
     def window_exists(self) -> bool:
-        windows = gw.getWindowsWithTitle('Downwell')
+        windows = gw.getWindowsWithTitle("Downwell")
         for window in windows:
-            if window.title == 'Downwell':
+            if window.title == "Downwell":
                 self.game_window = window
-                print(f"Found Downwell window!")
+                logger.info("Found Downwell window!")
                 return True
-        print("Downwell window not found.")
+        logger.warning("Downwell window not found.")
         self.game_window = None
         return False
 
@@ -44,7 +46,12 @@ class CustomDownwellEnvironment:
         if self.game_window is None:
             if not self.window_exists():
                 raise Exception("Cannot find Downwell window!")
-        return self.game_window.left, self.game_window.top, self.game_window.width, self.game_window.height
+        return (
+            self.game_window.left,
+            self.game_window.top,
+            self.game_window.width,
+            self.game_window.height,
+        )
 
     @staticmethod
     def crop_game_area(screenshot):
@@ -61,7 +68,9 @@ class CustomDownwellEnvironment:
             return np.zeros(self.image_size, dtype=np.uint8)
 
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        resized_frame = cv2.resize(gray_frame, self.image_size, interpolation=cv2.INTER_AREA)
+        resized_frame = cv2.resize(
+            gray_frame, self.image_size, interpolation=cv2.INTER_AREA
+        )
         return resized_frame
 
     def get_state(self) -> Optional[np.ndarray]:
@@ -86,17 +95,17 @@ class CustomDownwellEnvironment:
             state = np.stack(self.frame_stack, axis=2)
             return state
         except Exception as e:
-            print(f"Screenshot error: {e}")
+            logger.error(f"Screenshot error: {e}")
             self._capture_configured = False
             return None
 
     @staticmethod
     def is_game_over(player) -> bool:
-        hp = player.get_value('hp')
+        hp = player.get_value("hp")
         return hp is not None and hp <= 0
 
     def reset(self, player) -> Optional[np.ndarray]:
-        print("Resetting game...")
+        logger.info("Resetting game...")
 
         if not self.window_exists():
             return None
@@ -109,20 +118,20 @@ class CustomDownwellEnvironment:
             time.sleep(0.2)
 
             # Game reset sequence
-            pyautogui.press('esc')
+            pyautogui.press("esc")
             time.sleep(0.2)
-            pyautogui.press('right')
+            pyautogui.press("right")
             time.sleep(0.2)
-            pyautogui.press('space')
+            pyautogui.press("space")
             time.sleep(0.2)
-            pyautogui.press('space')
+            pyautogui.press("space")
             time.sleep(2)
 
             # If game over, restart
             if self.is_game_over(player):
-                print("Game over detected, restarting...")
+                logger.debug("Game over detected, restarting...")
                 for _ in range(5):
-                    pyautogui.press('space')
+                    pyautogui.press("space")
                     time.sleep(0.2)
 
             time.sleep(1)
@@ -135,7 +144,10 @@ class CustomDownwellEnvironment:
                 # Manually grab one frame to start the process
                 left, top, width, height = self.get_game_window_dimensions()
                 import PIL.ImageGrab as ImageGrab
-                screenshot = ImageGrab.grab(bbox=(left, top, left + width, top + height))
+
+                screenshot = ImageGrab.grab(
+                    bbox=(left, top, left + width, top + height)
+                )
                 frame = np.array(screenshot, dtype=np.uint8)
                 if frame.shape[2] == 4:
                     frame = frame[:, :, :3]
@@ -150,5 +162,5 @@ class CustomDownwellEnvironment:
             return np.stack(self.frame_stack, axis=2)
 
         except Exception as e:
-            print(f"Error resetting game: {e}")
+            logger.error(f"Error resetting game: {e}")
             return None

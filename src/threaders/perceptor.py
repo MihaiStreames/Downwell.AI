@@ -1,6 +1,8 @@
 import threading
 import time
 
+from loguru import logger
+
 from models.game_state import GameState
 
 
@@ -26,20 +28,21 @@ class PerceptorThread(threading.Thread):
                 screenshot = self.env.get_state()
 
                 # Get game state values
-                hp = self.player.get_value('hp')
-                xpos = self.player.get_value('xpos')
-                ypos = self.player.get_value('ypos')
+                hp = self.player.get_value("hp")
+                xpos = self.player.get_value("xpos")
+                ypos = self.player.get_value("ypos")
 
                 # Check if we are in a transition state
                 is_transition_state = xpos is None or hp is None
 
                 # If in a transition, set a sentinel value for HP for other parts of the system,
                 # but keep xpos/ypos as None to be used for level detection.
-                if is_transition_state: hp = 999.0
+                if is_transition_state:
+                    hp = 999.0
 
-                gems = self.player.get_value('gems') or 0
-                combo = self.player.get_value('combo') or 0
-                ammo = self.player.get_value('ammo') or 0
+                gems = self.player.get_value("gems") or 0
+                combo = self.player.get_value("combo") or 0
+                ammo = self.player.get_value("ammo") or 0
                 gem_high = self.player.is_gem_high()
 
                 state = GameState(
@@ -52,7 +55,7 @@ class PerceptorThread(threading.Thread):
                     ammo=ammo,
                     gem_high=gem_high,
                     timestamp=time.time(),
-                    frame_id=self.frame_count
+                    frame_id=self.frame_count,
                 )
 
                 with self.lock:
@@ -60,11 +63,12 @@ class PerceptorThread(threading.Thread):
                     self.frame_count += 1
 
             except Exception as e:
-                print(f"Perceptor error: {e}")
+                logger.error(f"Perceptor error: {e}")
 
             elapsed = time.time() - start_time
             sleep_time = self.frame_interval - elapsed
-            if sleep_time > 0: time.sleep(sleep_time)
+            if sleep_time > 0:
+                time.sleep(sleep_time)
 
     def stop(self):
         self.running = False

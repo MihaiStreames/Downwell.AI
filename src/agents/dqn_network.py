@@ -28,7 +28,7 @@ class DQN(nn.Module):
     def _initialize_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.Linear):
@@ -37,7 +37,8 @@ class DQN(nn.Module):
 
     def forward(self, x):
         # Normalize input to [0, 1]
-        if x.dtype == torch.uint8: x = x.float() / 255.0
+        if x.dtype == torch.uint8:
+            x = x.float() / 255.0
 
         # Conv layers for visual processing
         x = F.relu(self.bn1(self.conv1(x)))

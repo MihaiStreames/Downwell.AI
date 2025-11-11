@@ -1,13 +1,23 @@
 import threading
 import time
 
+from loguru import logger
+
 from models.action import Action
 
 
 class ThinkerThread(threading.Thread):
     """Analyzes states and makes decisions"""
 
-    def __init__(self, agent, reward_calc, state_buffer, action_queue, perceptor_lock, decision_fps=60):
+    def __init__(
+        self,
+        agent,
+        reward_calc,
+        state_buffer,
+        action_queue,
+        perceptor_lock,
+        decision_fps=60,
+    ):
         super().__init__(daemon=True)
         self.agent = agent
         self.reward_calc = reward_calc
@@ -39,28 +49,36 @@ class ThinkerThread(threading.Thread):
 
                     if self.last_state is not None and self.last_action is not None:
                         # Calculate reward for the transition
-                        reward = self.reward_calc.calculate_reward(self.last_state, current_state)
+                        reward = self.reward_calc.calculate_reward(
+                            self.last_state, current_state
+                        )
                         self.current_reward = reward
                         self.episode_reward += reward
 
                         if not is_transition_state and self.last_state.hp != 999.0:
-                            done = current_state.hp is not None and current_state.hp <= 0
+                            done = (
+                                current_state.hp is not None and current_state.hp <= 0
+                            )
 
                             loss = self.agent.train(
                                 self.last_state,
                                 self.last_action.action_type,
                                 reward,
                                 current_state,
-                                done
+                                done,
                             )
                             self.experiences_added += 1
 
                             if loss is not None and self.step_count % 100 == 0:
-                                print(f"Step {self.step_count}: Loss = {loss:.4f}, Reward = {reward:.2f}")
+                                logger.debug(
+                                    f"Step {self.step_count}: Loss = {loss:.4f}, Reward = {reward:.2f}"
+                                )
 
                     # Make decision
                     action, q_values = self.agent.get_action(current_state)
-                    action_cmd = Action(action_type=action, frame_id=current_state.frame_id)
+                    action_cmd = Action(
+                        action_type=action, frame_id=current_state.frame_id
+                    )
                     self.action_queue.put(action_cmd)
 
                     # Update tracking
@@ -68,18 +86,19 @@ class ThinkerThread(threading.Thread):
                     self.last_action = action_cmd
 
             except Exception as e:
-                print(f"Thinker error: {e}")
+                logger.error(f"Thinker error: {e}")
 
             # Maintain decision rate
             elapsed = time.time() - start_time
             sleep_time = self.decision_interval - elapsed
-            if sleep_time > 0: time.sleep(sleep_time)
+            if sleep_time > 0:
+                time.sleep(sleep_time)
 
     def get_episode_stats(self):
         stats = {
-            'episode_reward': self.episode_reward,
-            'experiences_added': self.experiences_added,
-            'steps': self.step_count
+            "episode_reward": self.episode_reward,
+            "experiences_added": self.experiences_added,
+            "steps": self.step_count,
         }
 
         # Reset for next episode
