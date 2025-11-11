@@ -30,7 +30,7 @@ def setup_logging() -> None:
 def check_platform() -> bool:
     """Check if the platform is Windows."""
     if platform.system() != "Windows":
-        logger.critical("ERROR: This script currently only supports Windows.")
+        logger.critical("ERROR: This AI only works on Windows.")
         return False
     return True
 
@@ -55,7 +55,6 @@ def connect_to_game(executable_name: str) -> Optional[tuple[pymem.Pymem, int]]:
         return proc, game_module
     except Exception as e:
         logger.error(f"Connection failed: {e}")
-        logger.error("Make sure Downwell is running.")
         return None
 
 
@@ -116,7 +115,6 @@ def run_episode(
     # Monitor episode
     episode_start = time.time()
     max_combo = 0
-    final_gems = 0
 
     while True:
         current_state = ai_system.get_latest_state()
