@@ -5,20 +5,14 @@ from dataclasses import dataclass
 class RewardConfig:
     """Weights and parameters for the reward function"""
 
-    # Core events
     level_complete_bonus: float = 100.0
-    death_penalty: float = -10.0
+    death_penalty: float = -50.0
 
-    # Main rewards
-    depth_reward: float = 0.5
-    survival_reward: float = 0.01
+    depth_reward: float = 2.0
+    damage_penalty: float = -2.0
 
-    # Damage penalty
-    damage_penalty: float = -0.5
-
-    # Clipping
-    min_reward_clip: float = -20.0
-    max_reward_clip: float = 20.0
+    min_reward_clip: float = -100.0
+    max_reward_clip: float = 100.0
 
 
 @dataclass(frozen=True)
@@ -26,12 +20,12 @@ class AgentConfig:
     """Hyperparameters for the DQN Agent"""
 
     learning_rate: float = 0.0001
-    gamma: float = 0.85
+    gamma: float = 0.9997
     epsilon_start: float = 1.0
     epsilon_min: float = 0.1
     epsilon_decay: float = 0.999985
     train_start: int = 5000
-    batch_size: int = 128
+    batch_size: int = 512
     pretrained_model: str = "models/downwell_ai_best.pth"
 
 
