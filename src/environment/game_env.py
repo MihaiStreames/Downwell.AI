@@ -1,4 +1,3 @@
-# game_env.py
 import time
 from collections import deque
 from typing import Optional, Tuple

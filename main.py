@@ -162,7 +162,9 @@ def log_episode_summary(
     logger.info(f"Steps: {stats['steps']}")
     logger.info(f"Max Combo: {stats['max_combo']:.0f}")
     logger.info(f"Final Gems: {stats['final_gems']:.0f}")
-    logger.info(f"Experiences: +{stats['experiences_added']} (total: {len(agent.memory)}/{agent.memory.capacity})")
+    logger.info(
+        f"Experiences: +{stats['experiences_added']} (total: {len(agent.memory)}/{agent.memory.capacity})"
+    )
     logger.info(f"Epsilon: {stats['epsilon']:.4f}")
     logger.info(f"Learning Rate: {stats['learning_rate']:.6f}")
 

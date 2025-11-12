@@ -10,3 +10,4 @@ matplotlib~=3.10.3
 mss~=10.1.0
 pywin32~=311
 loguru~=0.7.3
+vgamepad~=0.1.0

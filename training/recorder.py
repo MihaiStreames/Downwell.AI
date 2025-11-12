@@ -5,12 +5,13 @@ import uuid
 
 import keyboard
 import numpy as np
+import PIL.ImageGrab as ImageGrab
 import pymem
 
-from config import AppConfig
-from environment.game_env import CustomDownwellEnvironment
-from environment.mem_extractor import Player
 from main import get_game_module
+from src.config import AppConfig
+from src.environment.game_env import CustomDownwellEnvironment
+from src.environment.mem_extractor import Player
 
 FPS = 60
 FRAME_INTERVAL = 1.0 / FPS
@@ -67,7 +68,6 @@ def main():
     while True:
         # We need to manually process the first few frames to fill the deque
         left, top, width, height = env.get_game_window_dimensions()
-        import PIL.ImageGrab as ImageGrab
 
         screenshot = ImageGrab.grab(bbox=(left, top, left + width, top + height))
         frame = np.array(screenshot, dtype=np.uint8)[:, :, :3]
