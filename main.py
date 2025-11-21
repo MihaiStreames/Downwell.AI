@@ -59,7 +59,7 @@ def connect_to_game(executable_name: str) -> Optional[tuple[pymem.Pymem, int]]:
 
 
 def initialize_components(
-    proc: pymem.Pymem, game_module: int, config: AppConfig
+        proc: pymem.Pymem, game_module: int, config: AppConfig
 ) -> Optional[Dict[str, Any]]:
     """Initialize all AI components."""
     try:
@@ -92,7 +92,7 @@ def initialize_components(
 
 
 def run_episode(
-    episode_num: int, components: Dict[str, Any]
+        episode_num: int, components: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
     """Run a single training episode."""
     logger.info(f"Episode {episode_num}")
@@ -153,7 +153,7 @@ def run_episode(
 
 
 def log_episode_summary(
-    episode_num: int, stats: Dict[str, Any], agent: DQNAgent
+        episode_num: int, stats: Dict[str, Any], agent: DQNAgent
 ) -> None:
     """Log episode summary information."""
     logger.info(f"Episode {episode_num} Summary:")
@@ -184,11 +184,11 @@ def save_episode_data(episode_num: int, stats: Dict[str, Any]) -> Dict[str, Any]
 
 
 def handle_checkpoints(
-    episode_num: int,
-    episode_reward: float,
-    best_reward: float,
-    agent: DQNAgent,
-    config: AppConfig,
+        episode_num: int,
+        episode_reward: float,
+        best_reward: float,
+        agent: DQNAgent,
+        config: AppConfig,
 ) -> float:
     """Handle model checkpointing and updates."""
     # Check for new best
@@ -226,10 +226,10 @@ def save_training_history(training_history: List[Dict[str, Any]]) -> None:
 
 
 def cleanup(
-    components: Optional[Dict[str, Any]],
-    training_history: List[Dict[str, Any]],
-    episode_num: int,
-    best_reward: float,
+        components: Optional[Dict[str, Any]],
+        training_history: List[Dict[str, Any]],
+        episode_num: int,
+        best_reward: float,
 ) -> None:
     """Clean up resources and save final state."""
     logger.info("Cleaning up...")
