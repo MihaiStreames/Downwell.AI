@@ -69,11 +69,11 @@ class DQNAgent:
             self.update_target_network()
 
         logger.info(f"Agent initialized on: {torch.cuda.get_device_name()}")
-        logger.info(f"  Gamma: {self.gamma}")
-        logger.info(f"  Memory: {self.memory.capacity:,}")
-        logger.info(f"  Batch size: {self.batch_size}")
-        logger.info(f"  Training starts: {self.train_start:,}")
-        logger.info(f"  Epsilon: {self.epsilon:.3f} → {self.epsilon_min:.3f}")
+        logger.info(f"Gamma: {self.gamma}")
+        logger.info(f"Memory: {self.memory.capacity:,}")
+        logger.info(f"Batch size: {self.batch_size}")
+        logger.info(f"Training starts: {self.train_start:,}")
+        logger.info(f"Epsilon: {self.epsilon:.3f} → {self.epsilon_min:.3f}")
 
     def update_target_network(self):
         self.target_network.load_state_dict(self.q_network.state_dict())

@@ -7,8 +7,12 @@ class RewardCalculator:
 
     def __init__(self, config: RewardConfig):
         self.config = config
+
         self.max_depth_achieved = 0.0
+
         self.last_hp = None
+        self.last_gems = 0.0
+        self.last_combo = 0.0
 
     @staticmethod
     def _detect_level_completion(state: GameState, next_state: GameState) -> bool:
@@ -59,7 +63,8 @@ class RewardCalculator:
         if next_state.hp is None or next_state.hp <= 0:
             return 0.0
 
-        reward = 0.0
+        # Default step penalty
+        reward = self.config.step_penalty
 
         # Main reward: Going deeper
         if state.ypos is not None and next_state.ypos is not None:
@@ -67,6 +72,17 @@ class RewardCalculator:
                 progress = self.max_depth_achieved - next_state.ypos
                 reward += progress * self.config.depth_reward
                 self.max_depth_achieved = next_state.ypos
+
+        # Gem reward
+        gems_collected = next_state.gems - self.last_gems
+        if gems_collected > 0:
+            reward += gems_collected * self.config.gem_reward
+        self.last_gems = next_state.gems
+
+        # Combo bonus
+        if next_state.combo > self.config.combo_threshold:
+            reward += self.config.combo_bonus_multiplier * next_state.combo
+        self.last_combo = next_state.combo
 
         # Damage penalty
         if self.last_hp is not None and next_state.hp is not None:
@@ -90,3 +106,5 @@ class RewardCalculator:
     def reset_episode(self):
         self.max_depth_achieved = 0.0
         self.last_hp = None
+        self.last_gems = 0.0
+        self.last_combo = 0.0

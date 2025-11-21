@@ -1,13 +1,13 @@
-numpy~=2.3.4
+numpy~=2.3.5
 PyAutoGUI~=0.9.54
 PyGetWindow~=0.0.9
 Pymem~=1.14.0
 opencv-python~=4.12.0.88
-torch~=2.9.0
+torch~=2.9.1
 pillow~=12.0.0
 keyboard~=0.13.5
 matplotlib~=3.10.3
 mss~=10.1.0
-pywin32~=311
+pywin32~=311.0
 loguru~=0.7.3
 vgamepad~=0.1.0

@@ -87,10 +87,9 @@ The `Player` class uses pymem to read game state from memory via pointer chains 
 
 ### Reward System (src/core/reward_calculator.py)
 
-- **Primary reward:** Depth (descending deeper into the well)
-- **Bonuses:** Level completion (+100)
-- **Penalties:** Death (-10)
-- **Small survival reward:** Encourages staying alive
+- **Primary reward:** Depth (2 per best y-level reached)
+- **Bonuses:** Level completion (+100), Gems (+1 each), Combos (+5 each / threshold of 4 needed)
+- **Penalties:** Death (-10), Step penalty (-0.01 per step)
 
 Reward weights can be adjusted in `src/config.py` (RewardConfig).
 
@@ -109,4 +108,3 @@ To modify training behavior, edit these dataclasses (they're frozen, so you'll n
 
 - **Memory read errors**: Memory offsets in utils/game_attributes.py need updating
 - **CUDA out of memory**: Reduce `batch_size` in AgentConfig or `memory_size` in TrainConfig
-- **Low FPS**: Screen capture is expensive; consider reducing `perceptor_fps`

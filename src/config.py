@@ -9,6 +9,12 @@ class RewardConfig:
     death_penalty: float = -50.0
 
     depth_reward: float = 2.0
+    gem_reward: float = 1.0
+
+    combo_threshold: int = 4
+    combo_bonus_multiplier: float = 5.0
+
+    step_penalty: float = -0.01
     damage_penalty: float = -2.0
 
     min_reward_clip: float = -100.0
@@ -46,7 +52,7 @@ class EnvConfig:
     image_size: tuple[int, int] = (84, 84)
     frame_stack: int = 4
     perceptor_fps: int = 60
-    thinker_fps: int = 60
+    thinker_fps: int = 15
 
 
 @dataclass(frozen=True)

@@ -5,7 +5,7 @@ from typing import Optional
 
 from config import EnvConfig
 from models.game_state import GameState
-from threaders.actor import ActorThread
+from threaders.actor import VGamepadActor
 from threaders.perceptor import PerceptorThread
 from threaders.thinker import ThinkerThread
 
@@ -45,7 +45,7 @@ class DownwellAI:
             self.perceptor.lock,
             decision_fps=self.config.thinker_fps,
         )
-        self.actor = ActorThread(self.env, self.action_queue)
+        self.actor = VGamepadActor(self.env, self.action_queue)
 
     def start(self):
         self.create_threads()
