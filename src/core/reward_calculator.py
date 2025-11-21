@@ -1,9 +1,28 @@
-from config import RewardConfig
-from models.game_state import GameState
+from src.config import RewardConfig
+from src.models.game_state import GameState
 
 
 class RewardCalculator:
-    """Reward system for Downwell.AI"""
+    """Reward system for Downwell.AI.
+
+    Parameters
+    ----------
+    config : RewardConfig
+        Configuration containing reward weights and parameters.
+
+    Attributes
+    ----------
+    config : RewardConfig
+        Reward configuration instance.
+    max_depth_achieved : float
+        Deepest Y position reached by player.
+    last_hp : float | None
+        Player HP from previous state.
+    last_gems : float
+        Gem count from previous state.
+    last_combo : float
+        Combo value from previous state.
+    """
 
     def __init__(self, config: RewardConfig):
         self.config = config
@@ -16,6 +35,20 @@ class RewardCalculator:
 
     @staticmethod
     def _detect_level_completion(state: GameState, next_state: GameState) -> bool:
+        """Detect if the player completed a level.
+
+        Parameters
+        ----------
+        state : GameState
+            Current game state.
+        next_state : GameState
+            Next game state.
+
+        Returns
+        -------
+        bool
+            True if level was completed, False otherwise.
+        """
         if state is None or state.xpos is None or state.ypos is None:
             return False
         player_was_in_well = state.ypos < -100
@@ -24,7 +57,18 @@ class RewardCalculator:
 
     @staticmethod
     def calculate_boundary_penalty(xpos: float | None) -> float:
-        """Calculate penalty based on proximity to boundaries."""
+        """Calculate penalty based on proximity to boundaries.
+
+        Parameters
+        ----------
+        xpos : float | None
+            Player's X position. None if position unavailable.
+
+        Returns
+        -------
+        float
+            Penalty value (0.0 if in safe zone, negative if out of bounds).
+        """
         if xpos is None:
             return 0.0
 
@@ -46,18 +90,31 @@ class RewardCalculator:
         return 0.0
 
     def calculate_reward(self, state: GameState, next_state: GameState) -> float:
-        """Calculate reward based on game states."""
+        """Calculate reward based on game states.
+
+        Parameters
+        ----------
+        state : GameState
+            Current game state.
+        next_state : GameState
+            Next game state after action.
+
+        Returns
+        -------
+        float
+            Calculated reward value, clipped to configured bounds.
+        """
         # Level completion bonus
         if self._detect_level_completion(state, next_state):
             self.reset_episode()
-            return self.config.level_complete_bonus
+            return float(self.config.level_complete_bonus)
 
         if state.hp == 999.0 or next_state.hp == 999.0:
             return 0.0
 
         # Death penalty
-        if state.hp > 0 and (next_state.hp is None or next_state.hp <= 0):
-            return self.config.death_penalty
+        if state.hp is not None and state.hp > 0 and (next_state.hp is None or next_state.hp <= 0):
+            return float(self.config.death_penalty)
 
         # No reward if already dead
         if next_state.hp is None or next_state.hp <= 0:
@@ -103,9 +160,10 @@ class RewardCalculator:
         reward += boundary_penalty
 
         # Clip the reward
-        return max(self.config.min_reward_clip, min(reward, self.config.max_reward_clip))
+        return float(max(self.config.min_reward_clip, min(reward, self.config.max_reward_clip)))
 
     def reset_episode(self) -> None:
+        """Reset all episode-specific tracking variables."""
         self.max_depth_achieved = 0.0
         self.last_hp = None
         self.last_gems = 0.0
