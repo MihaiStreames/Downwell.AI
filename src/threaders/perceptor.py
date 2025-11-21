@@ -3,7 +3,7 @@ import time
 
 from loguru import logger
 
-from models.game_state import GameState
+from src.models.game_state import GameState
 
 
 class PerceptorThread(threading.Thread):

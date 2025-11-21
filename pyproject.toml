@@ -1,0 +1,123 @@
+[project]
+name = "downwell-ai"
+version = "1.0.1"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=2.0,<3.0",
+    "opencv-python~=4.12.0.88",
+    "pillow~=12.0.0",
+    "matplotlib~=3.10.3",
+    "mss~=10.1.0",
+    "loguru~=0.7.3",
+    "torch~=2.9.1",
+    "torchvision",
+    "torchaudio",
+    "types-pyautogui>=0.9.3.20241230",
+]
+
+[project.optional-dependencies]
+windows = [
+    "pyautogui~=0.9.54",
+    "pygetwindow~=0.0.9",
+    "pymem~=1.14.0",
+    "keyboard~=0.13.5",
+    "pywin32~=311.0",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
+torchaudio = { index = "pytorch-cu128" }
+
+[build-system]
+requires = ["setuptools>=80.9.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "ARG",  # flake8-unused-arguments
+    "PTH",  # flake8-use-pathlib
+    "RET",  # flake8-return
+    "PL",   # pylint
+    "PERF", # perflint
+]
+
+ignore = [
+    "E501",    # Line too long (handled by formatter)
+    "PLR0913", # Too many arguments
+    "PLR2004", # Magic value comparison
+    "RET504",  # Unnecessary assignment before return
+    "SIM108",  # Use ternary operator (sometimes reduces readability)
+    "F403",    # Star imports (reasonable for game_attributes.py pattern)
+    "F405",    # May be undefined from star imports
+    "N812",    # Lowercase imported as non-lowercase (common for torch.nn.functional as F)
+]
+
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+docstring-code-line-length = 80
+
+[tool.ruff.lint.isort]
+force-single-line = false
+force-sort-within-sections = true
+lines-after-imports = 2
+section-order = [
+    "future",
+    "standard-library",
+    "third-party",
+    "first-party",
+    "local-folder"
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.pylint]
+max-args = 7
+max-branches = 15
+max-returns = 6
+max-statements = 50
+
+[tool.mypy]
+python_executable = ".venv/bin/python"
+python_version = "3.13"
+explicit_package_bases = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+strict_equality = true

@@ -1,36 +1,63 @@
 # Downwell.AI
 
-This is a side project I'm working on while learning about AI at university. I'm trying to teach a DQN (Deep Q-Network) agent how to
-play Downwell.
+This is a side project I'm working on while learning about AI at university. I'm trying to teach a DQN (Deep Q-Network)
+agent how to play Downwell.
 
 ## Overview
 
-The way I go about this is by using memory reading (via pymem) to extract game state, screen capture for visual input, and keyboard
-automation (pyautogui) to control the game. The AI learns to play through trial and error using deep reinforcement
-learning.
+The way I go about this is by using memory reading (via pymem) to extract game state, screen capture for visual input,
+and keyboard automation (pyautogui) to control the game. The AI learns to play through trial and error using deep
+reinforcement learning.
 
 **Platform Requirements:** Windows only (uses Windows-specific memory reading and window management)
 
 ## Getting Started
 
+### Prerequisites
+
+- [uv](https://docs.astral.sh/uv/) - Fast Python package installer and resolver
+- Python 3.10 or higher
+- NVIDIA GPU with CUDA 12.8 support
+- Downwell (the game)
+
 ### Setup
 
-
+**On Windows (for running the AI):**
 
 ```bash
-# TODO: Figure out how to make these work with uv, it's far better
+# Install all dependencies including Windows-specific packages
+uv sync --extra windows
 
-# Install dependencies
-pip install -r requirements.txt
+# Verify CUDA is available
+uv run python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+```
 
-# Install CUDA support for PyTorch
-install_cuda.bat
+**On Linux (for development only):**
+
+```bash
+# Install core dependencies for code editing
+uv sync
+
+# Install dev tools (linter, type checker, test framework)
+uv sync --extra dev
+```
+
+### Running dev tools
+```bash
+# Linting + fixing issues
+uv run ruff check ./ --fix --unsafe-fixes
+
+# Format code
+uv run ruff format ./
+
+# Type checking
+uv run mypy src/
 ```
 
 ### Training the AI
 
 ```bash
-python main.py
+uv run python main.py
 ```
 
 **Prerequisites before running:**
@@ -47,6 +74,14 @@ python main.py
     - `downwell_ai_final_<episode>.pth`: Final model at end of training
 - Training history is saved to `training_history.csv` (episode rewards, steps, combos, etc.)
 
+### Visualizing Training Progress
+
+```bash
+uv run python plotter.py
+```
+
+This generates `training_progress.png` with reward trends, episode duration, combos, and gems over time.
+
 ## Architecture
 
 ### Three-Thread Pipeline (Orchestrator Pattern)
@@ -59,7 +94,7 @@ The core AI system uses a **three-threaded architecture** coordinated by `Downwe
     - Maintains a frame stack (4 frames) for temporal awareness
     - Writes to shared `state_buffer` (deque with thread lock)
 
-2. **ThinkerThread** (src/threaders/thinker.py) - Makes decisions at 60 FPS
+2. **ThinkerThread** (src/threaders/thinker.py) - Makes decisions at 15 FPS
     - Reads latest state from `state_buffer`
     - Computes rewards using RewardCalculator
     - Trains the DQN agent (experience replay)
@@ -77,19 +112,27 @@ The core AI system uses a **three-threaded architecture** coordinated by `Downwe
     - Input: 4-frame stack (84x84 grayscale images)
     - Output: Q-values for 6 discrete actions
 - **Actions:** No-op, Jump, Left, Right, Left+Jump, Right+Jump
-- **Training:** Uses target network, experiences and replay buffer
-- **Hardware:** Requires NVIDIA GPU (hardcoded to CUDA device)
+- **Training:** Uses target network, experience replay buffer (100k capacity)
+- **Hardware:** Requires NVIDIA GPU with CUDA support
 
 ### Memory Reading (src/environment/mem_extractor.py)
 
 The `Player` class uses pymem to read game state from memory via pointer chains (defined in `utils/game_attributes.py`).
-*Memory addresses are Windows-specific and may break with game updates.*
+
+*Note: Memory addresses are Windows-specific and may break with game updates.*
 
 ### Reward System (src/core/reward_calculator.py)
 
-- **Primary reward:** Depth (2 per best y-level reached)
-- **Bonuses:** Level completion (+100), Gems (+1 each), Combos (+5 each / threshold of 4 needed)
-- **Penalties:** Death (-10), Step penalty (-0.01 per step)
+- **Primary reward:** Depth (2 points per unit of best y-level reached)
+- **Bonuses:**
+    - Level completion (+100)
+    - Gems (+1 each)
+    - Combos (+5 × combo value, threshold of 4)
+- **Penalties:**
+    - Death (-50)
+    - Step penalty (-0.01 per step)
+    - Damage (-2 per HP lost)
+    - Boundary penalty (for staying near edges)
 
 Reward weights can be adjusted in `src/config.py` (RewardConfig).
 
@@ -102,9 +145,19 @@ All hyperparameters are in `src/config.py`:
 - **TrainConfig**: Episodes, memory size, save frequency
 - **EnvConfig**: Image size, frame stack, thread FPS
 
-To modify training behavior, edit these dataclasses (they're frozen, so you'll need to change defaults).
+To modify training behavior, edit these dataclasses.
 
 ## Common Issues
 
-- **Memory read errors**: Memory offsets in utils/game_attributes.py need updating
+- **Memory read errors**: Memory offsets in `utils/game_attributes.py` may need updating after game patches
 - **CUDA out of memory**: Reduce `batch_size` in AgentConfig or `memory_size` in TrainConfig
+- **"Downwell window not found"**: Make sure the game is running and the window is visible
+- **Import errors on Linux**: This is expected - the Windows-only dependencies aren't needed for code editing
+
+## Contributing
+
+This is a learning project, but feel free to open issues or PRs if you find bugs or have suggestions!
+
+## License
+
+MIT - see [LICENSE](LICENSE) file for details

@@ -1,7 +1,8 @@
 import csv
+from pathlib import Path
 
-import matplotlib.pyplot as plt
 from loguru import logger
+import matplotlib.pyplot as plt
 
 
 def plot_training_history(filepath="training_history.csv"):
@@ -9,7 +10,7 @@ def plot_training_history(filepath="training_history.csv"):
     episodes, rewards, durations, combos, gems = [], [], [], [], []
 
     try:
-        with open(filepath, "r") as csvfile:
+        with Path(filepath).open() as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
                 episodes.append(int(float(row["episode"])))
@@ -39,9 +40,7 @@ def plot_training_history(filepath="training_history.csv"):
         for i in range(len(rewards))
     ]
 
-    axs[0].plot(
-        episodes, moving_avg_reward, color="r", linestyle="--", label="10-ep Moving Avg"
-    )
+    axs[0].plot(episodes, moving_avg_reward, color="r", linestyle="--", label="10-ep Moving Avg")
     axs[0].legend()
 
     # Plot Episode Duration

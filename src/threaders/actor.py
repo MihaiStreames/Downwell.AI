@@ -2,8 +2,8 @@ import queue
 import threading
 import time
 
-import pyautogui
 from loguru import logger
+import pyautogui
 
 
 class ActorThread(threading.Thread):

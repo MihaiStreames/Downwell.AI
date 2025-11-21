@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
@@ -8,12 +7,12 @@ import numpy as np
 class GameState:
     """Immutable game state snapshot"""
 
-    screenshot: Optional[np.ndarray]
-    hp: Optional[float]
+    screenshot: np.ndarray | None
+    hp: float | None
     gems: float
     combo: float
-    xpos: Optional[float]
-    ypos: Optional[float]
+    xpos: float | None
+    ypos: float | None
     ammo: float
     gem_high: bool
     timestamp: float

@@ -3,7 +3,7 @@ import time
 
 from loguru import logger
 
-from models.action import Action
+from src.models.action import Action
 
 
 class ThinkerThread(threading.Thread):
@@ -49,16 +49,12 @@ class ThinkerThread(threading.Thread):
 
                     if self.last_state is not None and self.last_action is not None:
                         # Calculate reward for the transition
-                        reward = self.reward_calc.calculate_reward(
-                            self.last_state, current_state
-                        )
+                        reward = self.reward_calc.calculate_reward(self.last_state, current_state)
                         self.current_reward = reward
                         self.episode_reward += reward
 
                         if not is_transition_state and self.last_state.hp != 999.0:
-                            done = (
-                                current_state.hp is not None and current_state.hp <= 0
-                            )
+                            done = current_state.hp is not None and current_state.hp <= 0
 
                             loss = self.agent.train(
                                 self.last_state,
@@ -76,9 +72,7 @@ class ThinkerThread(threading.Thread):
 
                     # Make decision
                     action, q_values = self.agent.get_action(current_state)
-                    action_cmd = Action(
-                        action_type=action, frame_id=current_state.frame_id
-                    )
+                    action_cmd = Action(action_type=action, frame_id=current_state.frame_id)
                     self.action_queue.put(action_cmd)
 
                     # Update tracking

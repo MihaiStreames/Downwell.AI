@@ -1,20 +1,20 @@
 import csv
-import os
+from pathlib import Path
 import platform
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import pymem
 from loguru import logger
+import pymem
 from pymem.process import module_from_name
 
-from agents.dqn_agent import DQNAgent
-from config import AppConfig
-from core.orchestrator import DownwellAI
-from core.reward_calculator import RewardCalculator
-from core.vision import AIVision
-from environment.game_env import CustomDownwellEnvironment
-from environment.mem_extractor import Player
+from src.agents.dqn_agent import DQNAgent
+from src.config import AppConfig
+from src.core.orchestrator import DownwellAI
+from src.core.reward_calculator import RewardCalculator
+from src.core.vision import AIVision
+from src.environment.game_env import CustomDownwellEnvironment
+from src.environment.mem_extractor import Player
 
 
 def setup_logging() -> None:
@@ -44,7 +44,7 @@ def get_game_module(proc: pymem.Pymem, executable_name: str) -> int:
         raise
 
 
-def connect_to_game(executable_name: str) -> Optional[tuple[pymem.Pymem, int]]:
+def connect_to_game(executable_name: str) -> tuple[pymem.Pymem, int] | None:
     """Connect to the game process."""
     logger.info(f"Connecting to {executable_name}...")
 
@@ -59,8 +59,8 @@ def connect_to_game(executable_name: str) -> Optional[tuple[pymem.Pymem, int]]:
 
 
 def initialize_components(
-        proc: pymem.Pymem, game_module: int, config: AppConfig
-) -> Optional[Dict[str, Any]]:
+    proc: pymem.Pymem, game_module: int, config: AppConfig
+) -> dict[str, Any] | None:
     """Initialize all AI components."""
     try:
         player = Player(proc, game_module)
@@ -91,9 +91,7 @@ def initialize_components(
         return None
 
 
-def run_episode(
-        episode_num: int, components: Dict[str, Any]
-) -> Optional[Dict[str, Any]]:
+def run_episode(episode_num: int, components: dict[str, Any]) -> dict[str, Any] | None:
     """Run a single training episode."""
     logger.info(f"Episode {episode_num}")
 
@@ -152,9 +150,7 @@ def run_episode(
     return episode_stats
 
 
-def log_episode_summary(
-        episode_num: int, stats: Dict[str, Any], agent: DQNAgent
-) -> None:
+def log_episode_summary(episode_num: int, stats: dict[str, Any], agent: DQNAgent) -> None:
     """Log episode summary information."""
     logger.info(f"Episode {episode_num} Summary:")
     logger.info(f"Reward: {stats['episode_reward']:.1f}")
@@ -169,7 +165,7 @@ def log_episode_summary(
     logger.info(f"Learning Rate: {stats['learning_rate']:.6f}")
 
 
-def save_episode_data(episode_num: int, stats: Dict[str, Any]) -> Dict[str, Any]:
+def save_episode_data(episode_num: int, stats: dict[str, Any]) -> dict[str, Any]:
     """Create episode data dictionary for history tracking."""
     return {
         "episode": episode_num,
@@ -184,11 +180,11 @@ def save_episode_data(episode_num: int, stats: Dict[str, Any]) -> Dict[str, Any]
 
 
 def handle_checkpoints(
-        episode_num: int,
-        episode_reward: float,
-        best_reward: float,
-        agent: DQNAgent,
-        config: AppConfig,
+    episode_num: int,
+    episode_reward: float,
+    best_reward: float,
+    agent: DQNAgent,
+    config: AppConfig,
 ) -> float:
     """Handle model checkpointing and updates."""
     # Check for new best
@@ -211,14 +207,14 @@ def handle_checkpoints(
     return best_reward
 
 
-def save_training_history(training_history: List[Dict[str, Any]]) -> None:
+def save_training_history(training_history: list[dict[str, Any]]) -> None:
     """Save training history to CSV file."""
     if not training_history:
         return
 
     logger.info("Saving training history...")
     keys = training_history[0].keys()
-    with open("training_history.csv", "w", newline="") as output_file:
+    with Path("training_history.csv").open("w", newline="") as output_file:
         dict_writer = csv.DictWriter(output_file, keys)
         dict_writer.writeheader()
         dict_writer.writerows(training_history)
@@ -226,10 +222,10 @@ def save_training_history(training_history: List[Dict[str, Any]]) -> None:
 
 
 def cleanup(
-        components: Optional[Dict[str, Any]],
-        training_history: List[Dict[str, Any]],
-        episode_num: int,
-        best_reward: float,
+    components: dict[str, Any] | None,
+    training_history: list[dict[str, Any]],
+    episode_num: int,
+    best_reward: float,
 ) -> None:
     """Clean up resources and save final state."""
     logger.info("Cleaning up...")
@@ -258,7 +254,7 @@ def cleanup(
     logger.info(f"Best episode reward: {best_reward:.2f}")
 
 
-def training_loop(components: Dict[str, Any], config: AppConfig) -> None:
+def training_loop(components: dict[str, Any], config: AppConfig) -> None:
     """Main training loop."""
     max_episodes = config.training.max_episodes
     episode = 0
@@ -303,7 +299,7 @@ def main() -> None:
     """Main entry point for the training script."""
     # Setup
     setup_logging()
-    os.makedirs("models", exist_ok=True)
+    Path("models").mkdir(exist_ok=True)
 
     # Check platform
     if not check_platform():

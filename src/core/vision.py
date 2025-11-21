@@ -23,33 +23,21 @@ class AIVision:
 
         # Game State Info
         if game_state:
-            hp_text = (
-                f"HP: {game_state.hp:.0f}" if game_state.hp is not None else "HP: N/A"
-            )
+            hp_text = f"HP: {game_state.hp:.0f}" if game_state.hp is not None else "HP: N/A"
             gems_text = (
-                f"Gems: {game_state.gems:.0f}"
-                if game_state.gems is not None
-                else "Gems: N/A"
+                f"Gems: {game_state.gems:.0f}" if game_state.gems is not None else "Gems: N/A"
             )
             combo_text = (
-                f"Combo: {game_state.combo:.0f}"
-                if game_state.combo is not None
-                else "Combo: N/A"
+                f"Combo: {game_state.combo:.0f}" if game_state.combo is not None else "Combo: N/A"
             )
             ammo_text = (
-                f"Ammo: {game_state.ammo:.0f}"
-                if game_state.ammo is not None
-                else "Ammo: N/A"
+                f"Ammo: {game_state.ammo:.0f}" if game_state.ammo is not None else "Ammo: N/A"
             )
             xpos_text = (
-                f"X Pos: {game_state.xpos:.0f}"
-                if game_state.xpos is not None
-                else "X Pos: N/A"
+                f"X Pos: {game_state.xpos:.0f}" if game_state.xpos is not None else "X Pos: N/A"
             )
             ypos_text = (
-                f"Y Pos: {game_state.ypos:.0f}"
-                if game_state.ypos is not None
-                else "Y Pos: N/A"
+                f"Y Pos: {game_state.ypos:.0f}" if game_state.ypos is not None else "Y Pos: N/A"
             )
             gem_high_text = (
                 f"Gem High: {game_state.gem_high:.0f}"

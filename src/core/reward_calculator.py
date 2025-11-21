@@ -8,11 +8,11 @@ class RewardCalculator:
     def __init__(self, config: RewardConfig):
         self.config = config
 
-        self.max_depth_achieved = 0.0
+        self.max_depth_achieved: float = 0.0
 
-        self.last_hp = None
-        self.last_gems = 0.0
-        self.last_combo = 0.0
+        self.last_hp: float | None = None
+        self.last_gems: float = 0.0
+        self.last_combo: float = 0.0
 
     @staticmethod
     def _detect_level_completion(state: GameState, next_state: GameState) -> bool:
@@ -23,7 +23,7 @@ class RewardCalculator:
         return player_was_in_well and player_is_in_menu
 
     @staticmethod
-    def calculate_boundary_penalty(xpos: float) -> float:
+    def calculate_boundary_penalty(xpos: float | None) -> float:
         """Calculate penalty based on proximity to boundaries."""
         if xpos is None:
             return 0.0
@@ -38,7 +38,7 @@ class RewardCalculator:
             distance_out = 172 - xpos
             return -1.0 * (1 + distance_out * 0.1)
 
-        elif xpos > 308:
+        if xpos > 308:
             # Right out of bounds
             distance_out = xpos - 308
             return -1.0 * (1 + distance_out * 0.1)
@@ -67,11 +67,14 @@ class RewardCalculator:
         reward = self.config.step_penalty
 
         # Main reward: Going deeper
-        if state.ypos is not None and next_state.ypos is not None:
-            if next_state.ypos < self.max_depth_achieved:
-                progress = self.max_depth_achieved - next_state.ypos
-                reward += progress * self.config.depth_reward
-                self.max_depth_achieved = next_state.ypos
+        if (
+            state.ypos is not None
+            and next_state.ypos is not None
+            and next_state.ypos < self.max_depth_achieved
+        ):
+            progress = self.max_depth_achieved - next_state.ypos
+            reward += progress * self.config.depth_reward
+            self.max_depth_achieved = next_state.ypos
 
         # Gem reward
         gems_collected = next_state.gems - self.last_gems
@@ -92,18 +95,17 @@ class RewardCalculator:
                 reward += damage_penalty
 
         # Update HP tracking
-        self.last_hp = next_state.hp
+        if next_state.hp is not None:
+            self.last_hp = next_state.hp
 
         # Boundary penalty
         boundary_penalty = self.calculate_boundary_penalty(next_state.xpos)
         reward += boundary_penalty
 
         # Clip the reward
-        return max(
-            self.config.min_reward_clip, min(reward, self.config.max_reward_clip)
-        )
+        return max(self.config.min_reward_clip, min(reward, self.config.max_reward_clip))
 
-    def reset_episode(self):
+    def reset_episode(self) -> None:
         self.max_depth_achieved = 0.0
         self.last_hp = None
         self.last_gems = 0.0

@@ -1,13 +1,12 @@
+from collections import deque
 import queue
 import time
-from collections import deque
-from typing import Optional
 
-from config import EnvConfig
-from models.game_state import GameState
-from threaders.actor import VGamepadActor
-from threaders.perceptor import PerceptorThread
-from threaders.thinker import ThinkerThread
+from src.config import EnvConfig
+from src.models.game_state import GameState
+from src.threaders.actor import ActorThread
+from src.threaders.perceptor import PerceptorThread
+from src.threaders.thinker import ThinkerThread
 
 
 class DownwellAI:
@@ -21,11 +20,11 @@ class DownwellAI:
         self.config = config
 
         # Recreated each episode
-        self.perceptor = None
-        self.thinker = None
-        self.actor = None
-        self.state_buffer = None
-        self.action_queue = None
+        self.perceptor: PerceptorThread | None = None
+        self.thinker: ThinkerThread | None = None
+        self.actor: ActorThread | None = None
+        self.state_buffer: deque | None = None
+        self.action_queue: queue.Queue | None = None
 
     def create_threads(self):
         self.state_buffer = deque(maxlen=120)
@@ -45,7 +44,7 @@ class DownwellAI:
             self.perceptor.lock,
             decision_fps=self.config.thinker_fps,
         )
-        self.actor = VGamepadActor(self.env, self.action_queue)
+        self.actor = ActorThread(self.env, self.action_queue)
 
     def start(self):
         self.create_threads()
@@ -66,7 +65,7 @@ class DownwellAI:
         # Wait for threads to finish
         time.sleep(0.2)
 
-    def get_latest_state(self) -> Optional[GameState]:
+    def get_latest_state(self) -> GameState | None:
         if self.perceptor and self.state_buffer:
             with self.perceptor.lock:
                 return self.state_buffer[-1] if self.state_buffer else None

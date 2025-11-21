@@ -1,7 +1,8 @@
+import contextlib
 import threading
 
-import numpy as np
 from mss import mss
+import numpy as np
 
 
 class ScreenCapture:
@@ -37,7 +38,5 @@ class ScreenCapture:
     def __del__(self):
         """Cleanup"""
         if hasattr(self, "_thread_local") and hasattr(self._thread_local, "sct"):
-            try:
+            with contextlib.suppress(Exception):
                 self._thread_local.sct.close()
-            except Exception:
-                pass

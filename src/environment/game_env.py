@@ -1,15 +1,15 @@
-import time
 from collections import deque
-from typing import Optional, Tuple
+import time
 
 import cv2
+from loguru import logger
 import numpy as np
+from PIL import ImageGrab
 import pyautogui
 import pygetwindow as gw
-from loguru import logger
 
-from config import EnvConfig
-from environment.capture import ScreenCapture
+from src.config import EnvConfig
+from src.environment.capture import ScreenCapture
 
 
 class CustomDownwellEnvironment:
@@ -25,7 +25,7 @@ class CustomDownwellEnvironment:
             4: {"left", "space"},
             5: {"right", "space"},
         }
-        self.frame_stack = deque(maxlen=self.stack_size)
+        self.frame_stack: deque[np.ndarray] = deque(maxlen=self.stack_size)
 
         self.capture_engine = ScreenCapture()
         self._capture_configured = False
@@ -41,10 +41,9 @@ class CustomDownwellEnvironment:
         self.game_window = None
         return False
 
-    def get_game_window_dimensions(self) -> Tuple[int, int, int, int]:
-        if self.game_window is None:
-            if not self.window_exists():
-                raise Exception("Cannot find Downwell window!")
+    def get_game_window_dimensions(self) -> tuple[int, int, int, int]:
+        if self.game_window is None and not self.window_exists():
+            raise Exception("Cannot find Downwell window!")
         return (
             self.game_window.left,
             self.game_window.top,
@@ -67,12 +66,10 @@ class CustomDownwellEnvironment:
             return np.zeros(self.image_size, dtype=np.uint8)
 
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        resized_frame = cv2.resize(
-            gray_frame, self.image_size, interpolation=cv2.INTER_AREA
-        )
+        resized_frame = cv2.resize(gray_frame, self.image_size, interpolation=cv2.INTER_AREA)
         return resized_frame
 
-    def get_state(self) -> Optional[np.ndarray]:
+    def get_state(self) -> np.ndarray | None:
         try:
             left, top, width, height = self.get_game_window_dimensions()
 
@@ -103,7 +100,7 @@ class CustomDownwellEnvironment:
         hp = player.get_value("hp")
         return hp is not None and hp <= 0
 
-    def reset(self, player) -> Optional[np.ndarray]:
+    def reset(self, player) -> np.ndarray | None:
         logger.info("Resetting game...")
 
         if not self.window_exists():
@@ -142,11 +139,8 @@ class CustomDownwellEnvironment:
             if initial_screenshot is None:
                 # Manually grab one frame to start the process
                 left, top, width, height = self.get_game_window_dimensions()
-                import PIL.ImageGrab as ImageGrab
 
-                screenshot = ImageGrab.grab(
-                    bbox=(left, top, left + width, top + height)
-                )
+                screenshot = ImageGrab.grab(bbox=(left, top, left + width, top + height))
                 frame = np.array(screenshot, dtype=np.uint8)
                 if frame.shape[2] == 4:
                     frame = frame[:, :, :3]

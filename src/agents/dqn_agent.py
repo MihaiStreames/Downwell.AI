@@ -1,15 +1,15 @@
-import os
+from pathlib import Path
 import random
 
+from loguru import logger
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
-from loguru import logger
+from torch import nn, optim
 
-from agents.dqn_network import DQN
-from agents.replay import ReplayBuffer
-from config import AgentConfig, EnvConfig, TrainConfig
+from src.config import AgentConfig, EnvConfig, TrainConfig
+
+from .dqn_network import DQN
+from .replay import ReplayBuffer
 
 
 class DQNAgent:
@@ -55,14 +55,10 @@ class DQNAgent:
             input_channels=env_config.frame_stack, num_actions=self.action_size
         ).to(self.device)
 
-        self.optimizer = optim.Adam(
-            self.q_network.parameters(), lr=self.learning_rate, eps=1e-8
-        )
-        self.scheduler = optim.lr_scheduler.StepLR(
-            self.optimizer, step_size=20000, gamma=0.9
-        )
+        self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.learning_rate, eps=1e-8)
+        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=20000, gamma=0.9)
 
-        if config.pretrained_model and os.path.exists(config.pretrained_model):
+        if config.pretrained_model and Path(config.pretrained_model).exists():
             self.load_model(config.pretrained_model)
             logger.success(f"Loaded pre-trained model from: {config.pretrained_model}")
         else:
@@ -94,10 +90,7 @@ class DQNAgent:
 
         # Direct tensor conversion
         state_tensor = (
-            torch.from_numpy(state)
-            .permute(2, 0, 1)
-            .unsqueeze(0)
-            .to(self.device, non_blocking=True)
+            torch.from_numpy(state).permute(2, 0, 1).unsqueeze(0).to(self.device, non_blocking=True)
         )
 
         with torch.no_grad():
@@ -134,16 +127,12 @@ class DQNAgent:
 
         # Forward pass
         # Current Q-values
-        current_q_values = self.q_network(state_tensors).gather(
-            1, action_tensors.unsqueeze(-1)
-        )
+        current_q_values = self.q_network(state_tensors).gather(1, action_tensors.unsqueeze(-1))
 
         # Target Q-values
         with torch.no_grad():
             next_q_values = self.target_network(next_state_tensors).max(1)[0]
-            target_q_values = reward_tensors + (
-                self.gamma * next_q_values * ~done_tensors
-            )
+            target_q_values = reward_tensors + (self.gamma * next_q_values * ~done_tensors)
 
         # Loss
         loss = nn.SmoothL1Loss()(current_q_values.squeeze(), target_q_values)
@@ -180,9 +169,7 @@ class DQNAgent:
 
     def load_model(self, filepath):
         try:
-            checkpoint = torch.load(
-                filepath, map_location=self.device, weights_only=False
-            )
+            checkpoint = torch.load(filepath, map_location=self.device, weights_only=False)
 
             self.q_network.load_state_dict(
                 checkpoint.get("q_network_state_dict", checkpoint), strict=False

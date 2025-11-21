@@ -5,11 +5,11 @@ import torch
 class ReplayBuffer:
     """Tensor-based replay buffer"""
 
-    def __init__(self, capacity, state_shape, device=torch.device("cpu")):
+    def __init__(self, capacity, state_shape, device=None):
         self.capacity = capacity
         self.position = 0
         self.size = 0
-        self.device = device
+        self.device = device if device is not None else torch.device("cpu")
 
         # Pre-alloc with numpy
         self.states = np.zeros((capacity, *state_shape), dtype=np.uint8)
@@ -44,9 +44,7 @@ class ReplayBuffer:
             torch.from_numpy(self.states[indices]).to(self.device, non_blocking=True),
             torch.from_numpy(self.actions[indices]).to(self.device, non_blocking=True),
             torch.from_numpy(self.rewards[indices]).to(self.device, non_blocking=True),
-            torch.from_numpy(self.next_states[indices]).to(
-                self.device, non_blocking=True
-            ),
+            torch.from_numpy(self.next_states[indices]).to(self.device, non_blocking=True),
             torch.from_numpy(self.dones[indices]).to(self.device, non_blocking=True),
         )
 

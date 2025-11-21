@@ -1,11 +1,11 @@
 import torch
-import torch.nn as nn
+from torch import nn
 import torch.nn.functional as F
 
 
 class DQN(nn.Module):
     def __init__(self, input_channels=4, num_actions=6):
-        super(DQN, self).__init__()
+        super().__init__()
 
         # Convolutional layers for image processing
         self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=8, stride=4)
