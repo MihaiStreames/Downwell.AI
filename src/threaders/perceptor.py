@@ -7,7 +7,41 @@ from src.models.game_state import GameState
 
 
 class PerceptorThread(threading.Thread):
-    """Continuously captures game state at high frequency"""
+    """Continuously captures game state at high frequency.
+
+    This thread runs in the background capturing screenshots and reading
+    game memory values to build complete game states at a specified FPS.
+
+    Parameters
+    ----------
+    player : Player
+        Memory reader for game values.
+    env : CustomDownwellEnvironment
+        Environment wrapper for screen capture.
+    state_buffer : deque
+        Shared buffer to store captured states.
+    perception_fps : int, optional
+        Target frames per second for state capture, by default 60.
+
+    Attributes
+    ----------
+    player : Player
+        Game memory reader.
+    env : CustomDownwellEnvironment
+        Environment for screen capture.
+    state_buffer : deque
+        Shared state buffer.
+    target_fps : int
+        Target capture rate.
+    frame_interval : float
+        Time between frames in seconds.
+    running : bool
+        Flag to control thread execution.
+    frame_count : int
+        Total frames captured.
+    lock : threading.Lock
+        Lock for thread-safe buffer access.
+    """
 
     def __init__(self, player, env, state_buffer, perception_fps=60):
         super().__init__(daemon=True)
@@ -20,7 +54,13 @@ class PerceptorThread(threading.Thread):
         self.frame_count = 0
         self.lock = threading.Lock()
 
-    def run(self):
+    def run(self) -> None:
+        """Main thread loop to capture game states at target FPS.
+
+        Continuously captures screenshots and reads memory values, combines
+        them into GameState objects, and appends to the shared buffer.
+        Handles transition states (menus) by setting sentinel HP values.
+        """
         while self.running:
             start_time = time.time()
             try:
@@ -70,5 +110,6 @@ class PerceptorThread(threading.Thread):
             if sleep_time > 0:
                 time.sleep(sleep_time)
 
-    def stop(self):
+    def stop(self) -> None:
+        """Stop the perception thread gracefully."""
         self.running = False

@@ -7,7 +7,55 @@ from src.models.action import Action
 
 
 class ThinkerThread(threading.Thread):
-    """Analyzes states and makes decisions"""
+    """Analyzes states, makes decisions, and trains the agent.
+
+    This thread consumes states from the perception buffer, calculates
+    rewards, trains the neural network, and queues actions for execution.
+
+    Parameters
+    ----------
+    agent : DQNAgent
+        Deep Q-Network agent for action selection and training.
+    reward_calc : RewardCalculator
+        Reward calculator for evaluating transitions.
+    state_buffer : deque
+        Shared buffer of game states from perception thread.
+    action_queue : queue.Queue
+        Queue to send actions to the actor thread.
+    perceptor_lock : threading.Lock
+        Lock for thread-safe access to state buffer.
+    decision_fps : int, optional
+        Target decisions per second, by default 60.
+
+    Attributes
+    ----------
+    agent : DQNAgent
+        Decision-making agent.
+    reward_calc : RewardCalculator
+        Reward calculation system.
+    state_buffer : deque
+        Shared state buffer.
+    action_queue : queue.Queue
+        Action command queue.
+    perceptor_lock : threading.Lock
+        Lock for buffer access.
+    decision_interval : float
+        Time between decisions in seconds.
+    running : bool
+        Flag to control thread execution.
+    last_state : GameState | None
+        Previous state for transition tracking.
+    last_action : Action | None
+        Previous action for transition tracking.
+    step_count : int
+        Steps taken in current episode.
+    episode_reward : float
+        Cumulative reward for current episode.
+    current_reward : float
+        Most recent reward value.
+    experiences_added : int
+        Number of experiences added to replay buffer.
+    """
 
     def __init__(
         self,
@@ -35,7 +83,13 @@ class ThinkerThread(threading.Thread):
         self.current_reward = 0.0
         self.experiences_added = 0
 
-    def run(self):
+    def run(self) -> None:
+        """Main thread loop for decision-making and training.
+
+        Continuously reads latest state, calculates rewards for transitions,
+        trains the agent on experiences, and selects actions to queue.
+        Skips training during transition states (menus).
+        """
         while self.running:
             start_time = time.time()
 
@@ -88,7 +142,18 @@ class ThinkerThread(threading.Thread):
             if sleep_time > 0:
                 time.sleep(sleep_time)
 
-    def get_episode_stats(self):
+    def get_episode_stats(self) -> dict:
+        """Get episode statistics and reset for next episode.
+
+        Returns
+        -------
+        dict
+            Dictionary containing episode_reward, experiences_added, and steps.
+
+        Notes
+        -----
+        This method resets all episode tracking variables after returning stats.
+        """
         stats = {
             "episode_reward": self.episode_reward,
             "experiences_added": self.experiences_added,
@@ -104,5 +169,6 @@ class ThinkerThread(threading.Thread):
 
         return stats
 
-    def stop(self):
+    def stop(self) -> None:
+        """Stop the thinker thread gracefully."""
         self.running = False
