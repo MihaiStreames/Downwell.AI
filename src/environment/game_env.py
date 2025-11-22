@@ -1,5 +1,6 @@
 from collections import deque
 import time
+from typing import Any
 
 import cv2
 from loguru import logger
@@ -22,8 +23,8 @@ class CustomDownwellEnvironment:
 
     Attributes
     ----------
-    game_window : object | None
-        Game window handle.
+    game_window : Any | None
+        Downwell game window object from pygetwindow (Win32Window on Windows).
     image_size : tuple[int, int]
         Target image dimensions for processing.
     stack_size : int
@@ -37,7 +38,7 @@ class CustomDownwellEnvironment:
     """
 
     def __init__(self, config: EnvConfig):
-        self.game_window = None
+        self.game_window: Any | None = None
         self.image_size = config.image_size
         self.stack_size = config.frame_stack
         self.actions = {
