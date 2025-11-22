@@ -13,6 +13,56 @@ from .replay import ReplayBuffer
 
 
 class DQNAgent:
+    """Deep Q-Network agent with experience replay and target networks.
+
+    Implements the DQN algorithm with epsilon-greedy exploration, experience
+    replay, target networks, and gradient clipping for stable learning.
+
+    Parameters
+    ----------
+    action_space : dict
+        Dictionary mapping action indices to key combinations.
+    config : AgentConfig
+        Agent hyperparameters (learning rate, gamma, epsilon, etc.).
+    env_config : EnvConfig
+        Environment configuration (image size, frame stack).
+    train_config : TrainConfig
+        Training configuration (memory size, update frequency).
+
+    Attributes
+    ----------
+    action_space : dict
+        Action mappings.
+    action_size : int
+        Number of possible actions.
+    gamma : float
+        Discount factor for future rewards.
+    epsilon : float
+        Current exploration rate.
+    epsilon_min : float
+        Minimum exploration rate.
+    epsilon_decay : float
+        Multiplicative decay per step.
+    learning_rate : float
+        Optimizer learning rate.
+    batch_size : int
+        Training batch size.
+    train_start : int
+        Steps before training begins.
+    device : torch.device
+        Compute device (CPU/CUDA).
+    memory : ReplayBuffer
+        Experience replay buffer.
+    q_network : DQN
+        Main Q-network for action selection.
+    target_network : DQN
+        Target Q-network for stable training.
+    optimizer : torch.optim.Adam
+        Network optimizer.
+    scheduler : torch.optim.lr_scheduler.StepLR
+        Learning rate scheduler.
+    """
+
     def __init__(
         self,
         action_space: dict,
@@ -72,12 +122,44 @@ class DQNAgent:
         logger.info(f"Epsilon: {self.epsilon:.3f} → {self.epsilon_min:.3f}")
 
     def update_target_network(self):
+        """Copy weights from Q-network to target network.
+
+        Called periodically to stabilize training by reducing correlation
+        between predicted and target Q-values.
+        """
         self.target_network.load_state_dict(self.q_network.state_dict())
 
     def remember(self, state, action, reward, next_state, done):
+        """Store a transition in the replay buffer.
+
+        Parameters
+        ----------
+        state : np.ndarray
+            Current state observation.
+        action : int
+            Action taken.
+        reward : float
+            Reward received.
+        next_state : np.ndarray
+            Resulting state.
+        done : bool
+            Whether episode ended.
+        """
         self.memory.add(state, action, reward, next_state, done)
 
     def get_action(self, game_state):
+        """Select an action using epsilon-greedy policy.
+
+        Parameters
+        ----------
+        game_state : GameState
+            Current game state with screenshot.
+
+        Returns
+        -------
+        tuple[int, np.ndarray]
+            Tuple of (selected action index, Q-values for all actions).
+        """
         if game_state is None:
             return random.randrange(self.action_size), np.zeros(self.action_size)
 
@@ -99,6 +181,26 @@ class DQNAgent:
         return torch.argmax(actions).item(), actions.cpu().numpy().flatten()
 
     def train(self, state, action, reward, next_state, done):
+        """Store transition and trigger training if ready.
+
+        Parameters
+        ----------
+        state : GameState
+            Current state.
+        action : int
+            Action taken.
+        reward : float
+            Reward received.
+        next_state : GameState
+            Resulting state.
+        done : bool
+            Whether episode ended.
+
+        Returns
+        -------
+        float | None
+            Training loss if training occurred, None otherwise.
+        """
         self.remember(state.screenshot, action, reward, next_state.screenshot, done)
 
         if len(self.memory) >= self.train_start:
@@ -106,6 +208,16 @@ class DQNAgent:
         return None
 
     def replay(self):
+        """Train on a batch of experiences from replay buffer.
+
+        Samples random batch, computes loss using target network, performs
+        backpropagation with gradient clipping, and decays epsilon.
+
+        Returns
+        -------
+        float | None
+            Training loss value, or None if insufficient samples.
+        """
         if len(self.memory) < self.batch_size:
             return None
 
@@ -154,6 +266,15 @@ class DQNAgent:
         return loss.item()
 
     def save_model(self, filepath):
+        """Save model checkpoint to disk.
+
+        Saves Q-network, target network, optimizer, scheduler, and training state.
+
+        Parameters
+        ----------
+        filepath : str
+            Path where checkpoint will be saved.
+        """
         torch.save(
             {
                 "q_network_state_dict": self.q_network.state_dict(),
@@ -168,6 +289,21 @@ class DQNAgent:
         )
 
     def load_model(self, filepath):
+        """Load model checkpoint from disk.
+
+        Loads Q-network, target network, optimizer, and training state.
+        Handles backward compatibility with older checkpoint formats.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to checkpoint file.
+
+        Notes
+        -----
+        Silently continues with fresh model if loading fails. Epsilon is clamped
+        to at least epsilon_min to prevent over-exploitation.
+        """
         try:
             checkpoint = torch.load(filepath, map_location=self.device, weights_only=False)
 
