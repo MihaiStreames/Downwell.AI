@@ -6,6 +6,23 @@ import matplotlib.pyplot as plt
 
 
 def plot_training_history(filepath="training_history.csv"):
+    """Plot training metrics from CSV history file.
+
+    Creates a 4-panel visualization of training progress including:
+    - Total reward with 10-episode moving average
+    - Episode duration
+    - Maximum combo achieved
+    - Final gems collected
+
+    Parameters
+    ----------
+    filepath : str, optional
+        Path to training history CSV file (default: "training_history.csv").
+
+    Notes
+    -----
+    Saves the plot to 'training_progress.png' and displays it interactively.
+    """
     # Initialize lists to hold the data
     episodes, rewards, durations, combos, gems = [], [], [], [], []
 

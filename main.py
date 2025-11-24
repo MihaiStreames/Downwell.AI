@@ -18,7 +18,11 @@ from src.environment.mem_extractor import Player
 
 
 def setup_logging() -> None:
-    """Configure loguru logging with file and console outputs."""
+    """Configure loguru logging with file and console outputs.
+
+    Sets up dual logging to both a rotating log file and colorized console output.
+    Creates timestamped log files with automatic rotation at 500 MB.
+    """
     logger.remove()
     logger.add("training_{time}.log", rotation="500 MB", level="DEBUG")
     logger.add(lambda msg: print(msg, end=""), level="DEBUG", colorize=True)
@@ -28,7 +32,13 @@ def setup_logging() -> None:
 
 
 def check_platform() -> bool:
-    """Check if the platform is Windows."""
+    """Check if the platform is Windows.
+
+    Returns
+    -------
+    bool
+        True if running on Windows, False otherwise.
+    """
     if platform.system() != "Windows":
         logger.critical("ERROR: This AI only works on Windows.")
         return False
@@ -36,7 +46,25 @@ def check_platform() -> bool:
 
 
 def get_game_module(proc: pymem.Pymem, executable_name: str) -> int:
-    """Get the base address of the game module."""
+    """Get the base address of the game module.
+
+    Parameters
+    ----------
+    proc : pymem.Pymem
+        Process handle to the game.
+    executable_name : str
+        Name of the game executable.
+
+    Returns
+    -------
+    int
+        Base address of the game module.
+
+    Raises
+    ------
+    Exception
+        If module cannot be found in the process.
+    """
     try:
         return module_from_name(proc.process_handle, executable_name).lpBaseOfDll
     except Exception as e:
@@ -45,7 +73,18 @@ def get_game_module(proc: pymem.Pymem, executable_name: str) -> int:
 
 
 def connect_to_game(executable_name: str) -> tuple[pymem.Pymem, int] | None:
-    """Connect to the game process."""
+    """Connect to the game process.
+
+    Parameters
+    ----------
+    executable_name : str
+        Name of the game executable to attach to.
+
+    Returns
+    -------
+    tuple[pymem.Pymem, int] | None
+        Tuple of (process handle, module base address) if successful, None otherwise.
+    """
     logger.info(f"Connecting to {executable_name}...")
 
     try:
@@ -61,7 +100,22 @@ def connect_to_game(executable_name: str) -> tuple[pymem.Pymem, int] | None:
 def initialize_components(
     proc: pymem.Pymem, game_module: int, config: AppConfig
 ) -> dict[str, Any] | None:
-    """Initialize all AI components."""
+    """Initialize all AI components.
+
+    Parameters
+    ----------
+    proc : pymem.Pymem
+        Process handle to the game.
+    game_module : int
+        Base address of the game module.
+    config : AppConfig
+        Application configuration.
+
+    Returns
+    -------
+    dict[str, Any] | None
+        Dictionary of initialized components, or None if initialization fails.
+    """
     try:
         player = Player(proc, game_module)
         env = CustomDownwellEnvironment(config=config.env)
@@ -92,7 +146,20 @@ def initialize_components(
 
 
 def run_episode(episode_num: int, components: dict[str, Any]) -> dict[str, Any] | None:
-    """Run a single training episode."""
+    """Run a single training episode.
+
+    Parameters
+    ----------
+    episode_num : int
+        Current episode number.
+    components : dict[str, Any]
+        Dictionary of AI components.
+
+    Returns
+    -------
+    dict[str, Any] | None
+        Episode statistics, or None if episode failed to run.
+    """
     logger.info(f"Episode {episode_num}")
 
     env = components["env"]
@@ -151,7 +218,17 @@ def run_episode(episode_num: int, components: dict[str, Any]) -> dict[str, Any] 
 
 
 def log_episode_summary(episode_num: int, stats: dict[str, Any], agent: DQNAgent) -> None:
-    """Log episode summary information."""
+    """Log episode summary information.
+
+    Parameters
+    ----------
+    episode_num : int
+        Current episode number.
+    stats : dict[str, Any]
+        Episode statistics dictionary.
+    agent : DQNAgent
+        DQN agent for memory info.
+    """
     logger.info(f"Episode {episode_num} Summary:")
     logger.info(f"Reward: {stats['episode_reward']:.1f}")
     logger.info(f"Duration: {stats['duration']:.1f}s")
@@ -166,7 +243,20 @@ def log_episode_summary(episode_num: int, stats: dict[str, Any], agent: DQNAgent
 
 
 def save_episode_data(episode_num: int, stats: dict[str, Any]) -> dict[str, Any]:
-    """Create episode data dictionary for history tracking."""
+    """Create episode data dictionary for history tracking.
+
+    Parameters
+    ----------
+    episode_num : int
+        Current episode number.
+    stats : dict[str, Any]
+        Episode statistics.
+
+    Returns
+    -------
+    dict[str, Any]
+        Formatted episode data for CSV export.
+    """
     return {
         "episode": episode_num,
         "reward": stats["episode_reward"],
@@ -186,7 +276,26 @@ def handle_checkpoints(
     agent: DQNAgent,
     config: AppConfig,
 ) -> float:
-    """Handle model checkpointing and updates."""
+    """Handle model checkpointing and updates.
+
+    Parameters
+    ----------
+    episode_num : int
+        Current episode number.
+    episode_reward : float
+        Reward achieved this episode.
+    best_reward : float
+        Best reward achieved so far.
+    agent : DQNAgent
+        DQN agent to save.
+    config : AppConfig
+        Configuration for save/update frequencies.
+
+    Returns
+    -------
+    float
+        Updated best reward value.
+    """
     # Check for new best
     if episode_reward > best_reward:
         best_reward = episode_reward
@@ -208,7 +317,13 @@ def handle_checkpoints(
 
 
 def save_training_history(training_history: list[dict[str, Any]]) -> None:
-    """Save training history to CSV file."""
+    """Save training history to CSV file.
+
+    Parameters
+    ----------
+    training_history : list[dict[str, Any]]
+        List of episode data dictionaries.
+    """
     if not training_history:
         return
 
@@ -227,7 +342,19 @@ def cleanup(
     episode_num: int,
     best_reward: float,
 ) -> None:
-    """Clean up resources and save final state."""
+    """Clean up resources and save final state.
+
+    Parameters
+    ----------
+    components : dict[str, Any] | None
+        Dictionary of AI components.
+    training_history : list[dict[str, Any]]
+        List of episode data.
+    episode_num : int
+        Final episode number.
+    best_reward : float
+        Best reward achieved during training.
+    """
     logger.info("Cleaning up...")
 
     # Stop AI system and close vision
@@ -255,7 +382,15 @@ def cleanup(
 
 
 def training_loop(components: dict[str, Any], config: AppConfig) -> None:
-    """Main training loop."""
+    """Main training loop.
+
+    Parameters
+    ----------
+    components : dict[str, Any]
+        Dictionary of AI components.
+    config : AppConfig
+        Application configuration.
+    """
     max_episodes = config.training.max_episodes
     episode = 0
     best_reward = float("-inf")
@@ -296,7 +431,11 @@ def training_loop(components: dict[str, Any], config: AppConfig) -> None:
 
 
 def main() -> None:
-    """Main entry point for the training script."""
+    """Main entry point for the training script.
+
+    Sets up logging, checks platform compatibility, connects to the game,
+    initializes all components, and runs the training loop.
+    """
     # Setup
     setup_logging()
     Path("models").mkdir(exist_ok=True)

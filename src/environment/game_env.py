@@ -13,11 +13,34 @@ from src.environment.capture import ScreenCapture
 
 
 class CustomDownwellEnvironment:
+    """Custom environment for Downwell game interaction.
+
+    Parameters
+    ----------
+    config : EnvConfig
+        Environment configuration.
+
+    Attributes
+    ----------
+    game_window : pygetwindow.Win32Window | None
+        Game window handle.
+    image_size : tuple[int, int]
+        Target image dimensions for processing.
+    stack_size : int
+        Number of frames to stack.
+    actions : dict[int, set[str]]
+        Mapping of action indices to key combinations.
+    frame_stack : deque[np.ndarray]
+        Rolling buffer of processed frames.
+    capture_engine : ScreenCapture
+        Screen capture utility.
+    """
+
     def __init__(self, config: EnvConfig):
-        self.game_window = None
-        self.image_size = config.image_size
-        self.stack_size = config.frame_stack
-        self.actions = {
+        self.game_window: pygetwindow.Win32Window = None
+        self.image_size: tuple[int, int] = config.image_size
+        self.stack_size: int = config.frame_stack
+        self.actions: dict[int, set[str]] = {
             0: set(),
             1: {"space"},
             2: {"left"},
@@ -27,10 +50,18 @@ class CustomDownwellEnvironment:
         }
         self.frame_stack: deque[np.ndarray] = deque(maxlen=self.stack_size)
 
-        self.capture_engine = ScreenCapture()
-        self._capture_configured = False
+        self.capture_engine: ScreenCapture = ScreenCapture()
+        self._capture_configured: bool = False
 
     def window_exists(self) -> bool:
+        """Check if Downwell game window exists.
+
+        Returns
+        -------
+        bool
+            True if window found, False otherwise.
+        """
+
         windows = gw.getWindowsWithTitle("Downwell")
         for window in windows:
             if window.title == "Downwell":
@@ -42,6 +73,18 @@ class CustomDownwellEnvironment:
         return False
 
     def get_game_window_dimensions(self) -> tuple[int, int, int, int]:
+        """Get game window position and size.
+
+        Returns
+        -------
+        tuple[int, int, int, int]
+            Left, top, width, height of game window.
+
+        Raises
+        ------
+        Exception
+            If Downwell window cannot be found.
+        """
         if self.game_window is None and not self.window_exists():
             raise Exception("Cannot find Downwell window!")
         return (
@@ -53,6 +96,18 @@ class CustomDownwellEnvironment:
 
     @staticmethod
     def crop_game_area(screenshot):
+        """Crop screenshot to game play area.
+
+        Parameters
+        ----------
+        screenshot : np.ndarray
+            Full window screenshot.
+
+        Returns
+        -------
+        np.ndarray
+            Cropped game area (middle 40% horizontally).
+        """
         height, width = screenshot.shape[:2]
         game_left = width * 3 // 10
         game_right = width * 7 // 10
@@ -61,6 +116,18 @@ class CustomDownwellEnvironment:
         return screenshot[game_top:game_bottom, game_left:game_right]
 
     def _preprocess_frame(self, frame: np.ndarray) -> np.ndarray:
+        """Preprocess frame for neural network input.
+
+        Parameters
+        ----------
+        frame : np.ndarray
+            Raw RGB/BGR frame.
+
+        Returns
+        -------
+        np.ndarray
+            Grayscale resized frame.
+        """
         if frame is None:
             # Return a black frame if something goes wrong
             return np.zeros(self.image_size, dtype=np.uint8)
@@ -70,6 +137,13 @@ class CustomDownwellEnvironment:
         return resized_frame
 
     def get_state(self) -> np.ndarray | None:
+        """Capture and process current game state.
+
+        Returns
+        -------
+        np.ndarray | None
+            Stacked frames as state, or None if capture fails or stack not full.
+        """
         try:
             left, top, width, height = self.get_game_window_dimensions()
 
@@ -97,10 +171,34 @@ class CustomDownwellEnvironment:
 
     @staticmethod
     def is_game_over(player) -> bool:
+        """Check if game is over (player HP <= 0).
+
+        Parameters
+        ----------
+        player : Player
+            Player memory reader instance.
+
+        Returns
+        -------
+        bool
+            True if game is over, False otherwise.
+        """
         hp = player.get_value("hp")
         return hp is not None and hp <= 0
 
     def reset(self, player) -> np.ndarray | None:
+        """Reset the game environment.
+
+        Parameters
+        ----------
+        player : Player
+            Player memory reader instance.
+
+        Returns
+        -------
+        np.ndarray | None
+            Initial stacked state, or None if reset fails.
+        """
         logger.info("Resetting game...")
 
         if not self.window_exists():
