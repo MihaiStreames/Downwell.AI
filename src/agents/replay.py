@@ -97,13 +97,13 @@ class ReplayBuffer:
             on the configured device, or None if insufficient samples.
         """
         if self.size < batch_size:
-            return None
+            return
 
         # Random sampling using numpy
         indices = np.random.randint(0, self.size, size=batch_size)
 
         # Convert to tensors and move to device in one operation
-        batch = (
+        (
             torch.from_numpy(self.states[indices]).to(self.device, non_blocking=True),
             torch.from_numpy(self.actions[indices]).to(self.device, non_blocking=True),
             torch.from_numpy(self.rewards[indices]).to(self.device, non_blocking=True),

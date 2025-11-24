@@ -95,8 +95,6 @@ class TrainConfig:
         Episodes between model checkpoints (default: 25).
     """
 
-    """Parameters for the main training loop"""
-
     max_episodes: int = 5000
     memory_size: int = 100000
     target_update_frequency: int = 50

@@ -3,7 +3,6 @@ from torch import nn
 import torch.nn.functional as F
 
 
-
 class DQN(nn.Module):
     """Deep Q-Network for action-value function approximation.
 
@@ -31,6 +30,7 @@ class DQN(nn.Module):
     dropout : nn.Dropout
         Dropout layer for regularization.
     """
+
     def __init__(self, input_channels=4, num_actions=6):
         super().__init__()
 
