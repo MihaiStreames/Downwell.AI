@@ -1,12 +1,14 @@
-# Downwell.AI
+<p align="center">
+  <img src="assets/logo.png" alt="Downwell.AI" width="full"/>
+</p>
 
 This is a side project I'm working on while learning about AI at university. I'm trying to teach a DQN (Deep Q-Network)
 agent how to play Downwell.
 
 ## Overview
 
-The way I go about this is by using memory reading (via pymem) to extract game state, screen capture for visual input,
-and keyboard automation (pyautogui) to control the game. The AI learns to play through trial and error using deep
+The way I go about this is by using memory reading (via `pymem`) to extract game state, screen capture for visual input,
+and keyboard automation (`pyautogui`) to control the game. The AI learns to play through trial and error using deep
 reinforcement learning.
 
 **Platform Requirements:** Windows only (uses Windows-specific memory reading and window management)
@@ -15,10 +17,10 @@ reinforcement learning.
 
 ### Prerequisites
 
-- [uv](https://docs.astral.sh/uv/) - Fast Python package installer and resolver
+- [uv](https://docs.astral.sh/uv/)
 - Python 3.10 or higher
 - NVIDIA GPU with CUDA 12.8 support
-- Downwell (the game)
+- Downwell
 
 ### Setup
 
@@ -42,18 +44,6 @@ uv sync
 uv sync --extra dev
 ```
 
-### Running dev tools
-```bash
-# Linting + fixing issues
-uv run ruff check ./ --fix --unsafe-fixes
-
-# Format code
-uv run ruff format ./
-
-# Type checking
-uv run mypy src/
-```
-
 ### Training the AI
 
 ```bash
@@ -69,9 +59,9 @@ uv run python main.py
 ### Training Output
 
 - Models are saved to `models/` directory:
-    - `downwell_ai_best.pth`: Best performing model (highest reward)
-    - `downwell_ai_<episode>.pth`: Periodic checkpoints (every 25 episodes by default)
-    - `downwell_ai_final_<episode>.pth`: Final model at end of training
+  - `downwell_ai_best.pth`: Best performing model (highest reward)
+  - `downwell_ai_<episode>.pth`: Periodic checkpoints (every 25 episodes by default)
+  - `downwell_ai_final_<episode>.pth`: Final model at end of training
 - Training history is saved to `training_history.csv` (episode rewards, steps, combos, etc.)
 
 ### Visualizing Training Progress
@@ -109,8 +99,8 @@ The core AI system uses a **three-threaded architecture** coordinated by `Downwe
 ### DQN Agent (src/agents/dqn_agent.py)
 
 - **Network Architecture:** Convolutional neural network (src/agents/dqn_network.py)
-    - Input: 4-frame stack (84x84 grayscale images)
-    - Output: Q-values for 6 discrete actions
+  - Input: 4-frame stack (84x84 grayscale images)
+  - Output: Q-values for 6 discrete actions
 - **Actions:** No-op, Jump, Left, Right, Left+Jump, Right+Jump
 - **Training:** Uses target network, experience replay buffer (100k capacity)
 - **Hardware:** Requires NVIDIA GPU with CUDA support
@@ -125,14 +115,14 @@ The `Player` class uses pymem to read game state from memory via pointer chains 
 
 - **Primary reward:** Depth (2 points per unit of best y-level reached)
 - **Bonuses:**
-    - Level completion (+100)
-    - Gems (+1 each)
-    - Combos (+5 × combo value, threshold of 4)
+  - Level completion (+100)
+  - Gems (+1 each)
+  - Combos (+5 × combo value, threshold of 4)
 - **Penalties:**
-    - Death (-50)
-    - Step penalty (-0.01 per step)
-    - Damage (-2 per HP lost)
-    - Boundary penalty (for staying near edges)
+  - Death (-50)
+  - Step penalty (-0.01 per step)
+  - Damage (-2 per HP lost)
+  - Boundary penalty (for staying near edges)
 
 Reward weights can be adjusted in `src/config.py` (RewardConfig).
 
