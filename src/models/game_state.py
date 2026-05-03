@@ -5,7 +5,7 @@ import numpy as np
 
 @dataclass
 class GameState:
-    """Immutable game state snapshot"""
+    """Immutable game state snapshot."""
 
     screenshot: np.ndarray | None
     hp: float | None

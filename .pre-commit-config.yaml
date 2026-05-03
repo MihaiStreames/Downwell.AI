@@ -1,0 +1,25 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.9
+    hooks:
+      - id: ruff
+        args: [--fix, --unsafe-fixes]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: ssort
+        name: ssort
+        entry: uv run ssort
+        language: system
+        types: [python]
+        args: [src/]
+        pass_filenames: false
+
+      - id: ty
+        name: ty check
+        entry: uv run ty check
+        language: system
+        types: [python]
+        args: [src/]
+        pass_filenames: false

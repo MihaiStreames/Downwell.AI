@@ -27,20 +27,20 @@ reinforcement learning.
 **On Windows (for running the AI):**
 
 ```bash
-# Install all dependencies including Windows-specific packages
+# install all dependencies including Windows-specific packages
 uv sync --extra windows
 
-# Verify CUDA is available
+# verify CUDA is available
 uv run python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
 ```
 
 **On Linux (for development only):**
 
 ```bash
-# Install core dependencies for code editing
+# install core dependencies for code editing
 uv sync
 
-# Install dev tools (linter, type checker, test framework)
+# install dev tools (linter, type checker, test framework)
 uv sync --extra dev
 ```
 
@@ -79,22 +79,22 @@ This generates `training_progress.png` with reward trends, episode duration, com
 The core AI system uses a **three-threaded architecture** coordinated by `DownwellAI` (src/core/orchestrator.py):
 
 1. **PerceptorThread** (src/threaders/perceptor.py) - Captures game state at 60 FPS
-    - Reads memory values (HP, position, gems, combo, ammo)
-    - Captures and preprocesses screenshots
-    - Maintains a frame stack (4 frames) for temporal awareness
-    - Writes to shared `state_buffer` (deque with thread lock)
+   - Reads memory values (HP, position, gems, combo, ammo)
+   - Captures and preprocesses screenshots
+   - Maintains a frame stack (4 frames) for temporal awareness
+   - Writes to shared `state_buffer` (deque with thread lock)
 
 2. **ThinkerThread** (src/threaders/thinker.py) - Makes decisions at 15 FPS
-    - Reads latest state from `state_buffer`
-    - Computes rewards using RewardCalculator
-    - Trains the DQN agent (experience replay)
-    - Selects actions using epsilon-greedy policy
-    - Writes actions to `action_queue`
+   - Reads latest state from `state_buffer`
+   - Computes rewards using RewardCalculator
+   - Trains the DQN agent (experience replay)
+   - Selects actions using epsilon-greedy policy
+   - Writes actions to `action_queue`
 
 3. **ActorThread** (src/threaders/actor.py) - Executes actions
-    - Reads actions from `action_queue`
-    - Manages keyboard state (press/release keys)
-    - Uses pyautogui for input simulation
+   - Reads actions from `action_queue`
+   - Manages keyboard state (press/release keys)
+   - Uses pyautogui for input simulation
 
 ### DQN Agent (src/agents/dqn_agent.py)
 
@@ -109,7 +109,7 @@ The core AI system uses a **three-threaded architecture** coordinated by `Downwe
 
 The `Player` class uses pymem to read game state from memory via pointer chains (defined in `utils/game_attributes.py`).
 
-*Note: Memory addresses are Windows-specific and may break with game updates.*
+_Note: Memory addresses are Windows-specific and may break with game updates._
 
 ### Reward System (src/core/reward_calculator.py)
 

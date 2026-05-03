@@ -3,14 +3,14 @@ import numpy as np
 
 
 class AIVision:
-    """Window that displays AI stats and the agent's Q-values"""
+    """Window that displays AI stats and the agent's Q-values."""
 
     def __init__(self, width=300, height=250):
         self.width = width
         self.height = height
         self.window_name = "AI Vision"
 
-        # Action names corresponding to the Q-value indices
+        # action names corresponding to the Q-value indices
         self.action_names = ["none", "jump", "left", "right", "left+jump", "right+jump"]
 
         cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
@@ -18,10 +18,8 @@ class AIVision:
         cv2.resizeWindow(self.window_name, self.width, self.height)
 
     def display(self, game_state, q_values, last_reward=0.0):
-        # Create a black canvas
         canvas = np.zeros((self.height, self.width, 3), dtype=np.uint8)
 
-        # Game State Info
         if game_state:
             hp_text = f"HP: {game_state.hp:.0f}" if game_state.hp is not None else "HP: N/A"
             gems_text = (
@@ -67,26 +65,22 @@ class AIVision:
                     1,
                 )
 
-        # Q-Value Bars
         if q_values is not None and len(q_values) > 0:
-            # Normalize Q-values for consistent bar height
             max_q = max(q_values) if max(q_values) > 0 else 1.0
             min_q = min(q_values)
             q_range = max_q - min_q if max_q != min_q else 1.0
 
-            bar_x_start = 150  # X-coordinate to start drawing bars
+            bar_x_start = 150
 
             for i, q_val in enumerate(q_values):
-                # Bar color: Green for the best action, gray for others
                 color = (0, 255, 0) if i == np.argmax(q_values) else (100, 100, 100)
 
-                # Calculate bar width based on normalized Q-value
                 normalized_q = (q_val - min_q) / q_range if q_range > 0 else 0.5
                 bar_width = int(normalized_q * (self.width - bar_x_start - 10))
-                bar_width = max(1, bar_width)  # Ensure bar is at least 1px wide
+                bar_width = max(1, bar_width)
 
                 y_pos = 25 + i * 22
-                # Draw the bar
+
                 cv2.rectangle(
                     canvas,
                     (bar_x_start, y_pos - 12),
@@ -94,7 +88,7 @@ class AIVision:
                     color,
                     -1,
                 )
-                # Draw the text label
+
                 text = f"{self.action_names[i]}: {q_val:.2f}"
                 cv2.putText(
                     canvas,
@@ -106,7 +100,6 @@ class AIVision:
                     1,
                 )
 
-        # Show the canvas
         cv2.imshow(self.window_name, canvas)
         cv2.waitKey(1)
 

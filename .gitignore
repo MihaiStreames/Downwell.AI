@@ -1,13 +1,12 @@
-# IDE files
-/.idea
-
 # Python
-__pycache__
-/.venv
-*.egg-info/
+__pycache__/
+.venv/
+ruff_cache/
 
 # Data files
 *.pth
 
-# AI within AI >:)
+# LLMs
+.agents/
+.claude/
 CLAUDE.md

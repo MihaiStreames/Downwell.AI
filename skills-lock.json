@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "skills": {
+    "hugging-science": {
+      "source": "K-Dense-AI/scientific-agent-skills",
+      "sourceType": "github",
+      "skillPath": "scientific-skills/hugging-science/SKILL.md",
+      "computedHash": "8b75736feee48fc3f94be4ebec227fa7f83400a56616cbf6506f0abce2ae8ae9"
+    },
+    "markdown-mermaid-writing": {
+      "source": "K-Dense-AI/scientific-agent-skills",
+      "sourceType": "github",
+      "skillPath": "scientific-skills/markdown-mermaid-writing/SKILL.md",
+      "computedHash": "455e0a0df2616317e6832d6f67d65ecee6a751f5e4dd510429f93234553dde77"
+    },
+    "matplotlib": {
+      "source": "K-Dense-AI/scientific-agent-skills",
+      "sourceType": "github",
+      "skillPath": "scientific-skills/matplotlib/SKILL.md",
+      "computedHash": "865d42f91864271b2099b3303ed837fbf91f4ab671f0269ab82a32dcf6c016fb"
+    },
+    "optimize-for-gpu": {
+      "source": "K-Dense-AI/scientific-agent-skills",
+      "sourceType": "github",
+      "skillPath": "scientific-skills/optimize-for-gpu/SKILL.md",
+      "computedHash": "397f72e9c6f4b08a1a30e213fb8df31deed7f5f295bf625995cf90c9324b18e1"
+    },
+    "pytorch-lightning": {
+      "source": "K-Dense-AI/scientific-agent-skills",
+      "sourceType": "github",
+      "skillPath": "scientific-skills/pytorch-lightning/SKILL.md",
+      "computedHash": "8753b2a85f2822c4a13a641c458176971c32a500f12fee521a682dc8c742cb33"
+    },
+    "seaborn": {
+      "source": "K-Dense-AI/scientific-agent-skills",
+      "sourceType": "github",
+      "skillPath": "scientific-skills/seaborn/SKILL.md",
+      "computedHash": "c7292c8048941783cf6b769a7fb48dc1e7df9d4857ea06930bc05573fb1ee357"
+    },
+    "stable-baselines3": {
+      "source": "K-Dense-AI/scientific-agent-skills",
+      "sourceType": "github",
+      "skillPath": "scientific-skills/stable-baselines3/SKILL.md",
+      "computedHash": "d897ff1092a816651c5a32a12a6ac09dcc4d4f51e58f97d7854e609598966291"
+    },
+    "statistical-analysis": {
+      "source": "K-Dense-AI/scientific-agent-skills",
+      "sourceType": "github",
+      "skillPath": "scientific-skills/statistical-analysis/SKILL.md",
+      "computedHash": "7498aec2edcbe0e0c657d2f702478eacd6d0277d0304de5f557a045083298f05"
+    }
+  }
+}

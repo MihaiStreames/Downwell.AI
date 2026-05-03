@@ -7,42 +7,6 @@ from src.models.game_state import GameState
 
 
 class PerceptorThread(threading.Thread):
-    """Continuously captures game state at high frequency.
-
-    This thread runs in the background capturing screenshots and reading
-    game memory values to build complete game states at a specified FPS.
-
-    Parameters
-    ----------
-    player : Player
-        Memory reader for game values.
-    env : CustomDownwellEnvironment
-        Environment wrapper for screen capture.
-    state_buffer : deque
-        Shared buffer to store captured states.
-    perception_fps : int, optional
-        Target frames per second for state capture, by default 60.
-
-    Attributes
-    ----------
-    player : Player
-        Game memory reader.
-    env : CustomDownwellEnvironment
-        Environment for screen capture.
-    state_buffer : deque
-        Shared state buffer.
-    target_fps : int
-        Target capture rate.
-    frame_interval : float
-        Time between frames in seconds.
-    running : bool
-        Flag to control thread execution.
-    frame_count : int
-        Total frames captured.
-    lock : threading.Lock
-        Lock for thread-safe buffer access.
-    """
-
     def __init__(self, player, env, state_buffer, perception_fps=60):
         super().__init__(daemon=True)
         self.player = player
@@ -55,28 +19,19 @@ class PerceptorThread(threading.Thread):
         self.lock = threading.Lock()
 
     def run(self) -> None:
-        """Main thread loop to capture game states at target FPS.
-
-        Continuously captures screenshots and reads memory values, combines
-        them into GameState objects, and appends to the shared buffer.
-        Handles transition states (menus) by setting sentinel HP values.
-        """
         while self.running:
             start_time = time.time()
             try:
-                # Capture game state
                 screenshot = self.env.get_state()
 
-                # Get game state values
                 hp = self.player.get_value("hp")
                 xpos = self.player.get_value("xpos")
                 ypos = self.player.get_value("ypos")
 
-                # Check if we are in a transition state
                 is_transition_state = xpos is None or hp is None
 
-                # If in a transition, set a sentinel value for HP for other parts of the system,
-                # but keep xpos/ypos as None to be used for level detection.
+                # if in a transition, set a sentinel value for HP for other parts of the system,
+                # but keep xpos/ypos as None to be used for level detection
                 if is_transition_state:
                     hp = 999.0
 
@@ -111,5 +66,4 @@ class PerceptorThread(threading.Thread):
                 time.sleep(sleep_time)
 
     def stop(self) -> None:
-        """Stop the perception thread gracefully."""
         self.running = False

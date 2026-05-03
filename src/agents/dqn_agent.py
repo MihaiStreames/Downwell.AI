@@ -4,26 +4,20 @@ import random
 from loguru import logger
 import numpy as np
 import torch
-from torch import nn, optim
+from torch import nn
+from torch import optim
 
-from src.config import AgentConfig, EnvConfig, TrainConfig
+from src.config import Config
 
 from .dqn_network import DQN
 from .replay import ReplayBuffer
 
 
 class DQNAgent:
-    def __init__(
-        self,
-        action_space: dict,
-        config: AgentConfig,
-        env_config: EnvConfig,
-        train_config: TrainConfig,
-    ):
+    def __init__(self, action_space: dict, config: Config):
         self.action_space = action_space
         self.action_size = len(action_space)
 
-        # Config
         self.gamma = config.gamma
         self.epsilon = config.epsilon_start
         self.epsilon_min = config.epsilon_min
@@ -32,27 +26,24 @@ class DQNAgent:
         self.batch_size = config.batch_size
         self.train_start = config.train_start
 
-        # CUDA device
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # Replay buffer
         self.memory = ReplayBuffer(
-            capacity=train_config.memory_size,
+            capacity=config.memory_size,
             state_shape=(
-                env_config.image_size[0],
-                env_config.image_size[1],
-                env_config.frame_stack,
+                config.image_size[0],
+                config.image_size[1],
+                config.frame_stack,
             ),
             device=self.device,
         )
 
-        # Networks
-        self.q_network = DQN(
-            input_channels=env_config.frame_stack, num_actions=self.action_size
-        ).to(self.device)
+        self.q_network = DQN(input_channels=config.frame_stack, num_actions=self.action_size).to(
+            self.device
+        )
 
         self.target_network = DQN(
-            input_channels=env_config.frame_stack, num_actions=self.action_size
+            input_channels=config.frame_stack, num_actions=self.action_size
         ).to(self.device)
 
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.learning_rate, eps=1e-8)
@@ -88,7 +79,7 @@ class DQNAgent:
         if state is None:
             return random.randrange(self.action_size), np.zeros(self.action_size)
 
-        # Direct tensor conversion
+        # direct tensor conversion
         state_tensor = (
             torch.from_numpy(state).permute(2, 0, 1).unsqueeze(0).to(self.device, non_blocking=True)
         )
@@ -121,33 +112,33 @@ class DQNAgent:
             done_tensors,
         ) = batch
 
-        # Preprocess: permute from (B, H, W, C) to (B, C, H, W)
+        # permute from (B, H, W, C) to (B, C, H, W)
         state_tensors = state_tensors.permute(0, 3, 1, 2)
         next_state_tensors = next_state_tensors.permute(0, 3, 1, 2)
 
-        # Forward pass
-        # Current Q-values
+        # forward pass
+        # current Q-values
         current_q_values = self.q_network(state_tensors).gather(1, action_tensors.unsqueeze(-1))
 
-        # Target Q-values
+        # target Q-values
         with torch.no_grad():
             next_q_values = self.target_network(next_state_tensors).max(1)[0]
             target_q_values = reward_tensors + (self.gamma * next_q_values * ~done_tensors)
 
-        # Loss
+        # loss
         loss = nn.SmoothL1Loss()(current_q_values.squeeze(), target_q_values)
 
-        # Backward pass
+        # backward pass
         self.optimizer.zero_grad()
         loss.backward()
 
-        # Gradient clipping for stability
+        # gradient clipping for stability
         torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 10.0)
 
         self.optimizer.step()
         self.scheduler.step()
 
-        # Decay epsilon
+        # decay epsilon
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 

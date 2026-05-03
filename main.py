@@ -1,15 +1,19 @@
+import sys
+
+
+if sys.platform != "win32":
+    raise RuntimeError("This AI only works on Windows.")
+
 import csv
 from pathlib import Path
-import platform
 import time
-from typing import Any
 
 from loguru import logger
 import pymem
 from pymem.process import module_from_name
 
 from src.agents.dqn_agent import DQNAgent
-from src.config import AppConfig
+from src.config import Config
 from src.core.orchestrator import DownwellAI
 from src.core.reward_calculator import RewardCalculator
 from src.core.vision import AIVision
@@ -17,451 +21,126 @@ from src.environment.game_env import CustomDownwellEnvironment
 from src.environment.mem_extractor import Player
 
 
-def setup_logging() -> None:
-    """Configure loguru logging with file and console outputs.
-
-    Sets up dual logging to both a rotating log file and colorized console output.
-    Creates timestamped log files with automatic rotation at 500 MB.
-    """
+def main() -> None:
     logger.remove()
     logger.add("training_{time}.log", rotation="500 MB", level="DEBUG")
     logger.add(lambda msg: print(msg, end=""), level="DEBUG", colorize=True)
-
     logger.info("Starting Downwell.AI")
-    logger.info("=" * 50)
 
-
-def check_platform() -> bool:
-    """Check if the platform is Windows.
-
-    Returns
-    -------
-    bool
-        True if running on Windows, False otherwise.
-    """
-    if platform.system() != "Windows":
-        logger.critical("ERROR: This AI only works on Windows.")
-        return False
-    return True
-
-
-def get_game_module(proc: pymem.Pymem, executable_name: str) -> int:
-    """Get the base address of the game module.
-
-    Parameters
-    ----------
-    proc : pymem.Pymem
-        Process handle to the game.
-    executable_name : str
-        Name of the game executable.
-
-    Returns
-    -------
-    int
-        Base address of the game module.
-
-    Raises
-    ------
-    Exception
-        If module cannot be found in the process.
-    """
-    try:
-        return module_from_name(proc.process_handle, executable_name).lpBaseOfDll
-    except Exception as e:
-        logger.error(f"Error finding module '{executable_name}': {str(e)}")
-        raise
-
-
-def connect_to_game(executable_name: str) -> tuple[pymem.Pymem, int] | None:
-    """Connect to the game process.
-
-    Parameters
-    ----------
-    executable_name : str
-        Name of the game executable to attach to.
-
-    Returns
-    -------
-    tuple[pymem.Pymem, int] | None
-        Tuple of (process handle, module base address) if successful, None otherwise.
-    """
-    logger.info(f"Connecting to {executable_name}...")
+    Path("models").mkdir(exist_ok=True)
+    config = Config()
 
     try:
-        proc = pymem.Pymem(executable_name)
-        game_module = get_game_module(proc, executable_name)
-        logger.success("Successfully connected to game")
-        return proc, game_module
+        proc = pymem.Pymem("downwell.exe")
+        game_module = module_from_name(proc.process_handle, "downwell.exe").lpBaseOfDll
     except Exception as e:
-        logger.error(f"Connection failed: {e}")
-        return None
-
-
-def initialize_components(
-    proc: pymem.Pymem, game_module: int, config: AppConfig
-) -> dict[str, Any] | None:
-    """Initialize all AI components.
-
-    Parameters
-    ----------
-    proc : pymem.Pymem
-        Process handle to the game.
-    game_module : int
-        Base address of the game module.
-    config : AppConfig
-        Application configuration.
-
-    Returns
-    -------
-    dict[str, Any] | None
-        Dictionary of initialized components, or None if initialization fails.
-    """
-    try:
-        player = Player(proc, game_module)
-        env = CustomDownwellEnvironment(config=config.env)
-
-        agent = DQNAgent(
-            action_space=env.actions,
-            config=config.agent,
-            env_config=config.env,
-            train_config=config.training,
-        )
-
-        reward_calc = RewardCalculator(config=config.rewards)
-        ai_system = DownwellAI(player, env, agent, reward_calc, config=config.env)
-        vision = AIVision()
-
-        return {
-            "player": player,
-            "env": env,
-            "agent": agent,
-            "reward_calc": reward_calc,
-            "ai_system": ai_system,
-            "vision": vision,
-        }
-
-    except Exception as e:
-        logger.error(f"Error initializing components: {e}")
-        return None
-
-
-def run_episode(episode_num: int, components: dict[str, Any]) -> dict[str, Any] | None:
-    """Run a single training episode.
-
-    Parameters
-    ----------
-    episode_num : int
-        Current episode number.
-    components : dict[str, Any]
-        Dictionary of AI components.
-
-    Returns
-    -------
-    dict[str, Any] | None
-        Episode statistics, or None if episode failed to run.
-    """
-    logger.info(f"Episode {episode_num}")
-
-    env = components["env"]
-    player = components["player"]
-    ai_system = components["ai_system"]
-    agent = components["agent"]
-    vision = components["vision"]
-
-    # Reset environment
-    state = env.reset(player)
-    if state is None:
-        logger.warning("Failed to reset, skipping episode")
-        return None
-
-    # Start AI system
-    ai_system.start()
-
-    # Monitor episode
-    episode_start = time.time()
-    max_combo = 0
-
-    while True:
-        current_state = ai_system.get_latest_state()
-
-        if current_state:
-            # Update AI vision
-            _, q_values = agent.get_action(current_state)
-            last_reward = ai_system.thinker.current_reward if ai_system.thinker else 0.0
-            vision.display(current_state, q_values, last_reward)
-
-            max_combo = max(max_combo, current_state.combo)
-            final_gems = current_state.gems
-
-            if current_state.hp <= 0:
-                logger.info("Episode ended")
-                time.sleep(0.3)
-                break
-
-    # Stop AI system and get learning statistics
-    ai_system.stop()
-    episode_stats = ai_system.get_episode_stats()
-    episode_duration = time.time() - episode_start
-
-    # Add additional stats
-    episode_stats.update(
-        {
-            "duration": episode_duration,
-            "max_combo": max_combo,
-            "final_gems": final_gems,
-            "epsilon": agent.epsilon,
-            "learning_rate": agent.scheduler.get_last_lr()[0],
-        }
-    )
-
-    return episode_stats
-
-
-def log_episode_summary(episode_num: int, stats: dict[str, Any], agent: DQNAgent) -> None:
-    """Log episode summary information.
-
-    Parameters
-    ----------
-    episode_num : int
-        Current episode number.
-    stats : dict[str, Any]
-        Episode statistics dictionary.
-    agent : DQNAgent
-        DQN agent for memory info.
-    """
-    logger.info(f"Episode {episode_num} Summary:")
-    logger.info(f"Reward: {stats['episode_reward']:.1f}")
-    logger.info(f"Duration: {stats['duration']:.1f}s")
-    logger.info(f"Steps: {stats['steps']}")
-    logger.info(f"Max Combo: {stats['max_combo']:.0f}")
-    logger.info(f"Final Gems: {stats['final_gems']:.0f}")
-    logger.info(
-        f"Experiences: +{stats['experiences_added']} (total: {len(agent.memory)}/{agent.memory.capacity})"
-    )
-    logger.info(f"Epsilon: {stats['epsilon']:.4f}")
-    logger.info(f"Learning Rate: {stats['learning_rate']:.6f}")
-
-
-def save_episode_data(episode_num: int, stats: dict[str, Any]) -> dict[str, Any]:
-    """Create episode data dictionary for history tracking.
-
-    Parameters
-    ----------
-    episode_num : int
-        Current episode number.
-    stats : dict[str, Any]
-        Episode statistics.
-
-    Returns
-    -------
-    dict[str, Any]
-        Formatted episode data for CSV export.
-    """
-    return {
-        "episode": episode_num,
-        "reward": stats["episode_reward"],
-        "duration": stats["duration"],
-        "steps": stats["steps"],
-        "max_combo": stats["max_combo"],
-        "final_gems": stats["final_gems"],
-        "epsilon": stats["epsilon"],
-        "learning_rate": stats["learning_rate"],
-    }
-
-
-def handle_checkpoints(
-    episode_num: int,
-    episode_reward: float,
-    best_reward: float,
-    agent: DQNAgent,
-    config: AppConfig,
-) -> float:
-    """Handle model checkpointing and updates.
-
-    Parameters
-    ----------
-    episode_num : int
-        Current episode number.
-    episode_reward : float
-        Reward achieved this episode.
-    best_reward : float
-        Best reward achieved so far.
-    agent : DQNAgent
-        DQN agent to save.
-    config : AppConfig
-        Configuration for save/update frequencies.
-
-    Returns
-    -------
-    float
-        Updated best reward value.
-    """
-    # Check for new best
-    if episode_reward > best_reward:
-        best_reward = episode_reward
-        logger.success(f"NEW BEST: {best_reward:.2f}")
-        agent.save_model("models/downwell_ai_best.pth")
-
-    # Periodic save
-    if episode_num % config.training.save_frequency == 0:
-        model_path = f"models/downwell_ai_{episode_num}.pth"
-        agent.save_model(model_path)
-        logger.info(f"Model saved: {model_path}")
-
-    # Target network update
-    if episode_num % config.training.target_update_frequency == 0:
-        agent.update_target_network()
-        logger.info(" Target network updated")
-
-    return best_reward
-
-
-def save_training_history(training_history: list[dict[str, Any]]) -> None:
-    """Save training history to CSV file.
-
-    Parameters
-    ----------
-    training_history : list[dict[str, Any]]
-        List of episode data dictionaries.
-    """
-    if not training_history:
+        logger.error(f"Failed to connect to game: {e}")
         return
 
-    logger.info("Saving training history...")
-    keys = training_history[0].keys()
-    with Path("training_history.csv").open("w", newline="") as output_file:
-        dict_writer = csv.DictWriter(output_file, keys)
-        dict_writer.writeheader()
-        dict_writer.writerows(training_history)
-    logger.success("Saved training history to training_history.csv")
+    player = Player(proc, game_module)
+    env = CustomDownwellEnvironment(config=config)
+    agent = DQNAgent(action_space=env.actions, config=config)
+    reward_calc = RewardCalculator(config=config)
+    ai_system = DownwellAI(player, env, agent, reward_calc, config=config)
+    vision = AIVision()
 
-
-def cleanup(
-    components: dict[str, Any] | None,
-    training_history: list[dict[str, Any]],
-    episode_num: int,
-    best_reward: float,
-) -> None:
-    """Clean up resources and save final state.
-
-    Parameters
-    ----------
-    components : dict[str, Any] | None
-        Dictionary of AI components.
-    training_history : list[dict[str, Any]]
-        List of episode data.
-    episode_num : int
-        Final episode number.
-    best_reward : float
-        Best reward achieved during training.
-    """
-    logger.info("Cleaning up...")
-
-    # Stop AI system and close vision
-    if components:
-        if "ai_system" in components:
-            components["ai_system"].stop()
-        if "vision" in components:
-            components["vision"].close()
-
-    # Save training history
-    save_training_history(training_history)
-
-    # Save final model
-    if components and "agent" in components:
-        try:
-            final_model_path = f"models/downwell_ai_final_{episode_num}.pth"
-            components["agent"].save_model(final_model_path)
-            logger.success(f"Final model saved: {final_model_path}")
-        except Exception as e:
-            logger.error(f"Error saving final model: {e}")
-
-    logger.info("Training session ended")
-    logger.info(f"Total episodes completed: {episode_num}")
-    logger.info(f"Best episode reward: {best_reward:.2f}")
-
-
-def training_loop(components: dict[str, Any], config: AppConfig) -> None:
-    """Main training loop.
-
-    Parameters
-    ----------
-    components : dict[str, Any]
-        Dictionary of AI components.
-    config : AppConfig
-        Application configuration.
-    """
-    max_episodes = config.training.max_episodes
-    episode = 0
     best_reward = float("-inf")
     training_history = []
+    episode = 0
 
     try:
-        while episode < max_episodes:
+        while episode < config.max_episodes:
             episode += 1
+            logger.info(f"Episode {episode}")
 
-            # Run episode
-            episode_stats = run_episode(episode, components)
-
-            if episode_stats is None:
+            if env.reset(player) is None:
+                logger.warning("Failed to reset, skipping episode")
                 continue
 
-            # Log summary
-            log_episode_summary(episode, episode_stats, components["agent"])
+            ai_system.start()
+            episode_start = time.time()
+            max_combo = 0
+            final_gems = 0.0
 
-            # Save episode data
-            episode_data = save_episode_data(episode, episode_stats)
-            training_history.append(episode_data)
+            while True:
+                state = ai_system.get_latest_state()
+                if state:
+                    _, q_values = agent.get_action(state)
+                    last_reward = ai_system.thinker.current_reward if ai_system.thinker else 0.0
+                    vision.display(state, q_values, last_reward)
+                    max_combo = max(max_combo, state.combo)
+                    final_gems = state.gems
+                    if state.hp <= 0:
+                        logger.info("Episode ended")
+                        time.sleep(0.3)
+                        break
 
-            # Handle checkpoints
-            best_reward = handle_checkpoints(
-                episode,
-                episode_stats["episode_reward"],
-                best_reward,
-                components["agent"],
-                config,
+            ai_system.stop()
+            stats = ai_system.get_episode_stats()
+            stats.update(
+                {
+                    "duration": time.time() - episode_start,
+                    "max_combo": max_combo,
+                    "final_gems": final_gems,
+                    "epsilon": agent.epsilon,
+                    "learning_rate": agent.scheduler.get_last_lr()[0],
+                }
             )
 
+            logger.info(
+                f"Episode {episode} | reward={stats['episode_reward']:.1f}"
+                f" dur={stats['duration']:.1f}s steps={stats['steps']}"
+                f" combo={stats['max_combo']:.0f} gems={stats['final_gems']:.0f}"
+                f" mem={len(agent.memory)}/{agent.memory.capacity}"
+                f" ε={stats['epsilon']:.4f} lr={stats['learning_rate']:.6f}"
+            )
+
+            training_history.append(
+                {
+                    "episode": episode,
+                    "reward": stats["episode_reward"],
+                    "duration": stats["duration"],
+                    "steps": stats["steps"],
+                    "max_combo": stats["max_combo"],
+                    "final_gems": stats["final_gems"],
+                    "epsilon": stats["epsilon"],
+                    "learning_rate": stats["learning_rate"],
+                }
+            )
+
+            if stats["episode_reward"] > best_reward:
+                best_reward = stats["episode_reward"]
+                logger.success(f"NEW BEST: {best_reward:.2f}")
+                agent.save_model("models/downwell_ai_best.pth")
+
+            if episode % config.save_frequency == 0:
+                agent.save_model(f"models/downwell_ai_{episode}.pth")
+                logger.info(f"Checkpoint saved: episode {episode}")
+
+            if episode % config.target_update_frequency == 0:
+                agent.update_target_network()
+                logger.info("Target network updated")
+
     except KeyboardInterrupt:
-        logger.warning("Training interrupted by user")
+        logger.warning("Training interrupted")
     except Exception as e:
         logger.exception(f"Training error: {e}")
     finally:
-        cleanup(components, training_history, episode, best_reward)
+        ai_system.stop()
+        vision.close()
 
+        if training_history:
+            with Path("training_history.csv").open("w", newline="") as f:
+                writer = csv.DictWriter(f, training_history[0].keys())
+                writer.writeheader()
+                writer.writerows(training_history)
+            logger.success("Saved training_history.csv")
 
-def main() -> None:
-    """Main entry point for the training script.
-
-    Sets up logging, checks platform compatibility, connects to the game,
-    initializes all components, and runs the training loop.
-    """
-    # Setup
-    setup_logging()
-    Path("models").mkdir(exist_ok=True)
-
-    # Check platform
-    if not check_platform():
-        return
-
-    # Load configuration
-    config = AppConfig()
-
-    # Connect to game
-    executable_name = "downwell.exe"
-    connection = connect_to_game(executable_name)
-    if connection is None:
-        return
-
-    proc, game_module = connection
-
-    # Initialize components
-    components = initialize_components(proc, game_module, config)
-    if components is None:
-        return
-
-    # Run training
-    training_loop(components, config)
+        try:
+            agent.save_model(f"models/downwell_ai_final_{episode}.pth")
+            logger.success(f"Final model saved (episode {episode}, best={best_reward:.2f})")
+        except Exception as e:
+            logger.error(f"Error saving final model: {e}")
 
 
 if __name__ == "__main__":
