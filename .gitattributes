@@ -1,2 +1,28 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# enforce LF line endings
+* text=auto eol=lf
+
+# explicit binary types
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pth binary
+*.pyc binary
+
+# python
+*.py text eol=lf
+*.pyi text eol=lf
+*.toml text eol=lf
+*.lock text eol=lf
+
+# config / data
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.csv text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+
+# shell
+*.sh text eol=lf

@@ -1,25 +1,31 @@
 import queue
 import threading
 import time
+from typing import TYPE_CHECKING
 
 from loguru import logger
 import pyautogui
 
+from src.threaders.thinker import Action
+
+
+if TYPE_CHECKING:
+    from src.environment.game_env import CustomDownwellEnvironment
+
 
 class ActorThread(threading.Thread):
-    def __init__(self, env, action_queue):
+    def __init__(self, env: "CustomDownwellEnvironment", action_queue: queue.Queue[Action]) -> None:
         super().__init__(daemon=True)
 
-        self._env = env
-        self._action_queue = action_queue
+        self._env: CustomDownwellEnvironment = env
+        self._action_queue: queue.Queue[Action] = action_queue
 
-        self._running = True
-        self._currently_pressed = set()
+        self._running: bool = True
+        self._currently_pressed: set[str] = set()
 
     def run(self) -> None:
         while self._running:
             try:
-                # get the latest desired action from the Thinker
                 action_cmd = self._action_queue.get_nowait()
                 desired_keys = self._env.actions[action_cmd.action_type]
 

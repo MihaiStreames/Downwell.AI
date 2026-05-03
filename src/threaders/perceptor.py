@@ -1,26 +1,41 @@
+from collections import deque
 import threading
 import time
+from typing import TYPE_CHECKING
 
 from loguru import logger
 
 from src.models.game_state import GameState
 
 
+if TYPE_CHECKING:
+    from src.environment.game_env import CustomDownwellEnvironment
+    from src.environment.mem_extractor import Player
+
+
 class PerceptorThread(threading.Thread):
-    def __init__(self, player, env, state_buffer, perception_fps=60):
+    def __init__(
+        self,
+        player: "Player",
+        env: "CustomDownwellEnvironment",
+        state_buffer: deque[GameState],
+        perception_fps: int = 60,
+    ) -> None:
         super().__init__(daemon=True)
-        self.lock = threading.Lock()
+        self._lock: threading.Lock = threading.Lock()
 
-        self._player = player
-        self._env = env
+        self._player: Player = player
+        self._env: CustomDownwellEnvironment = env
+        self._state_buffer: deque[GameState] = state_buffer
 
-        self._state_buffer = state_buffer
+        self._target_fps: int = perception_fps
+        self._frame_interval: float = 1.0 / perception_fps
+        self._frame_count: int = 0
+        self._running: bool = True
 
-        self._target_fps = perception_fps
-        self._frame_interval = 1.0 / perception_fps
-        self._frame_count = 0
-
-        self._running = True
+    @property
+    def lock(self) -> threading.Lock:
+        return self._lock
 
     def run(self) -> None:
         while self._running:
@@ -30,13 +45,19 @@ class PerceptorThread(threading.Thread):
                 screenshot = self._env.get_state()
 
                 hp = self._player.get_value("hp")
-                xpos = self._player.get_value("xpos")
-                ypos = self._player.get_value("ypos")
 
-                is_transition_state = xpos is None or hp is None
+                # during level transitions hp becomes unreadable
+                # skip xpos/ypos reads to avoid flooding logs with pointer-chain failures at 60fps
+                if hp is None:
+                    xpos = None
+                    ypos = None
+                else:
+                    xpos = self._player.get_value("xpos")
+                    ypos = self._player.get_value("ypos")
 
-                # if in a transition, set a sentinel value for HP for other parts of the system,
-                # but keep xpos/ypos as None to be used for level detection
+                is_transition_state = hp is None or xpos is None
+
+                # sentinel HP so reward_calculator ignores transition frames
                 if is_transition_state:
                     hp = 999.0
 
@@ -60,7 +81,6 @@ class PerceptorThread(threading.Thread):
 
                 with self.lock:
                     self._state_buffer.append(state)
-
                     self._frame_count += 1
 
             except Exception as e:

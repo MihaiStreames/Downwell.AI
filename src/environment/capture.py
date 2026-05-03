@@ -2,33 +2,34 @@ import contextlib
 import threading
 
 from mss import mss
+from mss.base import MSS
 import numpy as np
 
 
 class ScreenCapture:
     """MSS-based capture."""
 
-    def __init__(self):
-        self._thread_local = threading.local()
-        self._monitor = None
-        self._last_bbox = None
+    def __init__(self) -> None:
+        self._thread_local: threading.local = threading.local()
+        self._monitor: dict[str, int] | None = None
+        self._last_bbox: tuple[int, int, int, int] | None = None
 
-    def __del__(self):
+    def __del__(self) -> None:
         if hasattr(self, "_thread_local") and hasattr(self._thread_local, "sct"):
             with contextlib.suppress(Exception):
                 self._thread_local.sct.close()
 
-    def _get_sct(self):
+    def _get_sct(self) -> MSS:
         if not hasattr(self._thread_local, "sct"):
             self._thread_local.sct = mss()
         return self._thread_local.sct
 
-    def set_region(self, left, top, width, height):
+    def set_region(self, left: int, top: int, width: int, height: int) -> None:
         """Configure capture region."""
         self._monitor = {"top": top, "left": left, "width": width, "height": height}
         self._last_bbox = (left, top, width, height)
 
-    def capture(self):
+    def capture(self) -> np.ndarray:
         """Capture and return as numpy array (H, W, C)."""
         if self._monitor is None:
             raise RuntimeError("Must call set_region() first")

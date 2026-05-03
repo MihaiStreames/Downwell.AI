@@ -1,9 +1,9 @@
 [project]
 name = "downwell-ai"
 version = "1.0.2"
-description = "Downwell AI"
+description = "DQN agent for the game Downwell"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 dependencies = [
     "numpy>=2.4.4,<3.0",
     "opencv-python>=4.13.0.92",
@@ -11,10 +11,11 @@ dependencies = [
     "matplotlib>=3.10.9",
     "mss>=10.2.0",
     "loguru>=0.7.3",
-    "torch>=2.11.0",
-    "torchvision",
-    "torchaudio",
     "types-pyautogui>=0.9.3.20260408",
+    # for my older GTX 1080
+    "torch==2.7.1",
+    "torchvision==0.22.1",
+    "torchaudio==2.7.1",
 ]
 
 [project.optional-dependencies]
@@ -32,14 +33,16 @@ dev = [
 ]
 
 [[tool.uv.index]]
-name = "pytorch-cu128"
-url = "https://download.pytorch.org/whl/cu128"
+# for my older GTX 1080
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
 explicit = true
 
 [tool.uv.sources]
-torch = { index = "pytorch-cu128" }
-torchvision = { index = "pytorch-cu128" }
-torchaudio = { index = "pytorch-cu128" }
+# for my older GTX 1080
+torch = { index = "pytorch-cu126" }
+torchvision = { index = "pytorch-cu126" }
+torchaudio = { index = "pytorch-cu126" }
 
 [tool.ty.environment]
 python-version = "3.14"

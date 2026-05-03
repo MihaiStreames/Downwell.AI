@@ -2,147 +2,111 @@
   <img src="assets/logo.png" alt="Downwell.AI" width="full"/>
 </p>
 
-This is a side project I'm working on while learning about AI at university. I'm trying to teach a DQN (Deep Q-Network)
-agent how to play Downwell.
+A side project I'm working on while learning about AI at university. The goal is to teach a DQN agent how to play [Downwell](https://store.steampowered.com/app/360740/Downwell/) - I wanted something harder than CartPole and more fun than Atari benchmarks.
 
 ## Overview
 
-The way I go about this is by using memory reading (via `pymem`) to extract game state, screen capture for visual input,
-and keyboard automation (`pyautogui`) to control the game. The AI learns to play through trial and error using deep
-reinforcement learning.
+The AI watches the game (screen capture + memory reads via `pymem`) and presses keys with `pyautogui`. There's no API or ROM hooks, it simply plays the real game in a real window, the same way I would. That makes everything messier than a clean Gym env, but also more interesting: the agent has to deal with frame drops, transition screens, and a game that wasn't designed to be poked at.
 
-**Platform Requirements:** Windows only (uses Windows-specific memory reading and window management)
+The brain is a fairly standard Double-DQN with frame stacking and Polyak-averaged target updates. Most of the actual work has been in the *non-AI* parts: getting state cleanly, shaping rewards that don't reward the wrong thing, and keeping three threads in sync without losing too much information.
 
-## Getting Started
+**Platform Requirements:** Windows only (uses Windows-specific memory reading and window management).
 
-### Prerequisites
+## Running it
 
-- [uv](https://docs.astral.sh/uv/)
-- Python 3.10 or higher
-- NVIDIA GPU with CUDA 12.8 support
-- Downwell
-
-### Setup
-
-**On Windows (for running the AI):**
+You'll need [uv](https://docs.astral.sh/uv/), Python 3.10+, an NVIDIA GPU with CUDA 12.6, and a copy of Downwell.
 
 ```bash
-# install all dependencies including Windows-specific packages
 uv sync --extra windows
-
-# verify CUDA is available
-uv run python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+uv run python -c "import torch; print(torch.cuda.is_available())"
 ```
 
-**On Linux (for development only):**
-
-```bash
-# install core dependencies for code editing
-uv sync
-
-# install dev tools (linter, type checker, test framework)
-uv sync --extra dev
-```
-
-### Training the AI
+Then start Downwell, make sure the window is visible, and:
 
 ```bash
 uv run python main.py
 ```
 
-**Prerequisites before running:**
-
-- Downwell must be running (downwell.exe)
-- Game window must be visible on screen
-- The AI will automatically detect and connect to the game process
-
-### Training Output
-
-- Models are saved to `models/` directory:
-  - `downwell_ai_best.pth`: Best performing model (highest reward)
-  - `downwell_ai_<episode>.pth`: Periodic checkpoints (every 25 episodes by default)
-  - `downwell_ai_final_<episode>.pth`: Final model at end of training
-- Training history is saved to `training_history.csv` (episode rewards, steps, combos, etc.)
-
-### Visualizing Training Progress
+Models drop into `models/` (`downwell_ai_best.pth` is the highest-reward one, plus periodic checkpoints every 25 episodes). Episode stats go to `training_history.csv`. To see the curves:
 
 ```bash
 uv run python plotter.py
 ```
 
-This generates `training_progress.png` with reward trends, episode duration, combos, and gems over time.
+If you're on Linux and just want to read the code, `uv sync` (without the windows extra) is enough.
 
 ## Architecture
 
-### Three-Thread Pipeline (Orchestrator Pattern)
+### Three-thread pipeline
 
-The core AI system uses a **three-threaded architecture** coordinated by `DownwellAI` (src/core/orchestrator.py):
+The core AI system uses a three-threaded architecture coordinated by `DownwellAI` ([orchestrator.py](src/core/orchestrator.py)):
 
-1. **PerceptorThread** (src/threaders/perceptor.py) - Captures game state at 60 FPS
+1. **PerceptorThread** ([perceptor.py](src/threaders/perceptor.py)) - captures game state at 60 FPS
    - Reads memory values (HP, position, gems, combo, ammo)
    - Captures and preprocesses screenshots
    - Maintains a frame stack (4 frames) for temporal awareness
-   - Writes to shared `state_buffer` (deque with thread lock)
+   - Writes to a shared `state_buffer` (deque with thread lock)
 
-2. **ThinkerThread** (src/threaders/thinker.py) - Makes decisions at 15 FPS
+2. **ThinkerThread** ([thinker.py](src/threaders/thinker.py)) - makes decisions at 30 FPS
    - Reads latest state from `state_buffer`
-   - Computes rewards using RewardCalculator
+   - Computes rewards using `RewardCalculator`
    - Trains the DQN agent (experience replay)
    - Selects actions using epsilon-greedy policy
+   - Drains stale actions from the queue before pushing a new one, so the actor never executes a decision that's two frames out of date
    - Writes actions to `action_queue`
 
-3. **ActorThread** (src/threaders/actor.py) - Executes actions
+3. **ActorThread** ([actor.py](src/threaders/actor.py)) - executes actions
    - Reads actions from `action_queue`
    - Manages keyboard state (press/release keys)
    - Uses pyautogui for input simulation
 
-### DQN Agent (src/agents/dqn_agent.py)
+### DQN Agent
 
-- **Network Architecture:** Convolutional neural network (src/agents/dqn_network.py)
-  - Input: 4-frame stack (84x84 grayscale images)
-  - Output: Q-values for 6 discrete actions
-- **Actions:** No-op, Jump, Left, Right, Left+Jump, Right+Jump
-- **Training:** Uses target network, experience replay buffer (100k capacity)
-- **Hardware:** Requires NVIDIA GPU with CUDA support
+CNN over a 4-frame stack of 84x84 grayscale images ([dqn_network.py](src/agents/dqn_network.py)), six discrete actions: no-op, jump, left, right, left+jump, right+jump. Replay buffer holds 100k transitions. Target network updates with Polyak averaging (`tau=0.005`) instead of hard copies - smoother, less destabilizing. Standard ε-greedy with slow decay.
 
-### Memory Reading (src/environment/mem_extractor.py)
+Nothing exotic. The interesting stuff is in the rewards.
 
-The `Player` class uses pymem to read game state from memory via pointer chains (defined in `utils/game_attributes.py`).
+### Memory Reading
 
-_Note: Memory addresses are Windows-specific and may break with game updates._
+Pointer chains in [game_attributes.py](src/utils/game_attributes.py). `Player.get_value()` walks them and returns whatever the type says. Some attributes have multiple base addresses to try since some would occasionally get relocated.
 
-### Reward System (src/core/reward_calculator.py)
+These offsets *will* break if the game updates. They're written for the current Steam build - it won't work on the standalone version since that doesn't have the Steam hooks. I'd like to look into that later as I want to run multiple instances.
 
-- **Primary reward:** Depth (2 points per unit of best y-level reached)
-- **Bonuses:**
-  - Level completion (+100)
-  - Gems (+1 each)
-  - Combos (+5 × combo value, threshold of 4)
-- **Penalties:**
-  - Death (-50)
-  - Step penalty (-0.01 per step)
-  - Damage (-2 per HP lost)
-  - Boundary penalty (for staying near edges)
+### Reward shaping (the part I keep rewriting)
 
-Reward weights can be adjusted in `src/config.py` (RewardConfig).
+Naive reward shaping in this game is a trap. The big one I'm still fighting:
+
+**Room farming.** The agent gets stuck in side rooms / shops / power-up rooms and accumulates reward by bouncing around. The first version rewarded absolute depth, so revisiting depths in a shop just kept paying out. I switched to per-level depth *delta* (only new max-depth progress within a level counts) and added an out-of-bounds penalty for being near the side walls. Neither was enough on its own, the agent still doesn't really learn to backtrack out of a room it walked into. This is an open problem.
+
+**Wall sticking.** Related to the room thing, a separate failure mode. Agent gets pinned at a left/right wall and jumps in place. Currently mitigating with action filtering (strips left/right inputs when xpos is past a threshold) and a danger-zone penalty before the wall, plus a small center-attraction reward. Still not solved, the next plan is a stuck-detector that forces a bounce when xpos doesn't move for N frames.
+
+The current reward weights:
+
+- **Bonuses:** level completion (+100), depth progress (+2 per unit deeper than max delta this level), gems (+1 each), ammo-kill (+2 per ammo unit fired while in combo), combo (sustained combo over a threshold)
+- **Penalties:** death (-50), step (-0.01), damage (-2 per HP lost), boundary danger zone, center pull
+
+Rewards clip to `[-100, 100]` so a single bad transition can't poison the buffer. All weights in [config.py](src/config.py) (single `Config` dataclass).
 
 ## Configuration
 
-All hyperparameters are in `src/config.py`:
+All hyperparameters live in [config.py](src/config.py), grouped by section:
 
-- **AgentConfig**: Learning rate, gamma, epsilon decay, batch size
-- **RewardConfig**: Reward weights and clipping
-- **TrainConfig**: Episodes, memory size, save frequency
-- **EnvConfig**: Image size, frame stack, thread FPS
+- **Reward weights**: bonuses, penalties, clipping bounds
+- **Agent hyperparameters**: learning rate, gamma, epsilon schedule, batch size, pretrained model path
+- **Training loop**: max episodes, memory size, target update tau (Polyak), save frequency, gradient clipping, LR step size
+- **Environment / threading**: image size, frame stack depth, perceptor/thinker FPS
 
-To modify training behavior, edit these dataclasses.
+## Things that bit me
+
+- **Transition frames.** Between levels, xpos and hp become unreadable. Originally the agent saw `hp=None` and panicked. Now the perceptor returns a sentinel `hp=999.0` during transitions and the thinker / reward calc ignore those frames entirely.
+- **Pointer-chain log spam.** Failed reads at 60fps flood the logs during transitions. Dropped those messages to TRACE level.
 
 ## Common Issues
 
-- **Memory read errors**: Memory offsets in `utils/game_attributes.py` may need updating after game patches
-- **CUDA out of memory**: Reduce `batch_size` in AgentConfig or `memory_size` in TrainConfig
-- **"Downwell window not found"**: Make sure the game is running and the window is visible
-- **Import errors on Linux**: This is expected - the Windows-only dependencies aren't needed for code editing
+- **Memory read errors:** offsets in [game_attributes.py](src/utils/game_attributes.py) may need updating after game patches.
+- **CUDA out of memory:** reduce `batch_size` or `memory_size` in [config.py](src/config.py).
+- **"Downwell window not found":** make sure the game is running and the window is visible.
+- **Import errors on Linux:** expected, the Windows-only dependencies aren't needed for code editing.
 
 ## Contributing
 
@@ -150,4 +114,4 @@ This is a learning project, but feel free to open issues or PRs if you find bugs
 
 ## License
 
-MIT - see [LICENSE](LICENSE) file for details
+MIT - see [LICENSE](LICENSE) for details.

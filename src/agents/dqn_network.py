@@ -4,18 +4,17 @@ import torch.nn.functional as F  # noqa: N812
 
 
 class DQN(nn.Module):
-    def _initialize_weights(self):
+    def _initialize_weights(self) -> None:
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
-
             elif isinstance(m, nn.Linear):
                 nn.init.kaiming_normal_(m.weight)
                 nn.init.constant_(m.bias, 0)
 
-    def __init__(self, input_channels=4, num_actions=6):
+    def __init__(self, input_channels: int = 4, num_actions: int = 6) -> None:
         super().__init__()
 
         self._conv1 = nn.Conv2d(input_channels, 32, kernel_size=8, stride=4)
@@ -30,7 +29,7 @@ class DQN(nn.Module):
 
         self._initialize_weights()
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         if x.dtype == torch.uint8:
             x = x.float() / 255.0
 

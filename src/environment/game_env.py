@@ -6,6 +6,7 @@ if sys.platform != "win32":
 
 from collections import deque
 import time
+from typing import TYPE_CHECKING
 
 import cv2
 from loguru import logger
@@ -18,8 +19,26 @@ from src.config import Config
 from src.environment.capture import ScreenCapture
 
 
+if TYPE_CHECKING:
+    from src.environment.mem_extractor import Player
+
+
+def _crop_game_area(screenshot: np.ndarray) -> np.ndarray:
+    height, width = screenshot.shape[:2]
+    game_left = width * 3 // 10
+    game_right = width * 7 // 10
+    game_top = 0
+    game_bottom = height
+    return screenshot[game_top:game_bottom, game_left:game_right]
+
+
+def _is_game_over(player: "Player") -> bool:
+    hp = player.get_value("hp")
+    return hp is not None and hp <= 0
+
+
 class CustomDownwellEnvironment:
-    def __init__(self, config: Config):
+    def __init__(self, config: Config) -> None:
         self._game_window: gw.Win32Window | None = None
 
         self._image_size: tuple[int, int] = config.image_size
@@ -38,7 +57,7 @@ class CustomDownwellEnvironment:
         self._capture_engine: ScreenCapture = ScreenCapture()
         self._capture_configured: bool = False
 
-    def window_exists(self) -> bool:
+    def _window_exists(self) -> bool:
         windows = gw.getWindowsWithTitle("Downwell")
         for window in windows:
             if window.title == "Downwell":
@@ -51,24 +70,16 @@ class CustomDownwellEnvironment:
         self._game_window = None
         return False
 
-    def get_game_window_dimensions(self) -> tuple[int, int, int, int]:
-        if self._game_window is None and not self.window_exists():
+    def _get_game_window_dimensions(self) -> tuple[int, int, int, int]:
+        if self._game_window is None and not self._window_exists():
             raise Exception("Cannot find Downwell window!")
+        assert self._game_window is not None
         return (
             self._game_window.left,
             self._game_window.top,
             self._game_window.width,
             self._game_window.height,
         )
-
-    @staticmethod
-    def crop_game_area(screenshot):
-        height, width = screenshot.shape[:2]
-        game_left = width * 3 // 10
-        game_right = width * 7 // 10
-        game_top = 0
-        game_bottom = height
-        return screenshot[game_top:game_bottom, game_left:game_right]
 
     def _preprocess_frame(self, frame: np.ndarray) -> np.ndarray:
         if frame is None:
@@ -80,7 +91,7 @@ class CustomDownwellEnvironment:
 
     def get_state(self) -> np.ndarray | None:
         try:
-            left, top, width, height = self.get_game_window_dimensions()
+            left, top, width, height = self._get_game_window_dimensions()
 
             # configure capture region on first call or if window moved
             if not self._capture_configured:
@@ -89,7 +100,7 @@ class CustomDownwellEnvironment:
 
             frame = self._capture_engine.capture()
 
-            cropped_frame = self.crop_game_area(frame)
+            cropped_frame = _crop_game_area(frame)
             processed_frame = self._preprocess_frame(cropped_frame)
             self._frame_stack.append(processed_frame)
 
@@ -105,20 +116,16 @@ class CustomDownwellEnvironment:
             self._capture_configured = False
             return None
 
-    @staticmethod
-    def is_game_over(player) -> bool:
-        hp = player.get_value("hp")
-        return hp is not None and hp <= 0
-
     def reset(self, player) -> np.ndarray | None:
         logger.info("Resetting game...")
 
-        if not self.window_exists():
+        if not self._window_exists():
             return None
 
         try:
             self._frame_stack.clear()
 
+            assert self._game_window is not None
             self._game_window.restore()
             self._game_window.activate()
             time.sleep(0.2)
@@ -134,13 +141,14 @@ class CustomDownwellEnvironment:
             time.sleep(2)
 
             # if game over, restart
-            if self.is_game_over(player):
+            if _is_game_over(player):
                 logger.debug("Game over detected, restarting...")
                 for _ in range(5):
                     pyautogui.press("space")
                     time.sleep(0.2)
 
             time.sleep(1)
+            assert self._game_window is not None
             self._game_window.restore()
             self._game_window.activate()
 
@@ -148,13 +156,13 @@ class CustomDownwellEnvironment:
             initial_screenshot = self.get_state()
             if initial_screenshot is None:
                 # manually grab one frame to start the process
-                left, top, width, height = self.get_game_window_dimensions()
+                left, top, width, height = self._get_game_window_dimensions()
 
                 screenshot = ImageGrab.grab(bbox=(left, top, left + width, top + height))
                 frame = np.array(screenshot, dtype=np.uint8)
                 if frame.shape[2] == 4:
                     frame = frame[:, :, :3]
-                cropped_frame = self.crop_game_area(frame)
+                cropped_frame = _crop_game_area(frame)
                 processed_frame = self._preprocess_frame(cropped_frame)
             else:
                 processed_frame = initial_screenshot[:, :, -1]  # get last frame

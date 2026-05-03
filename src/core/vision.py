@@ -1,23 +1,25 @@
 import cv2
 import numpy as np
 
+from src.models.game_state import GameState
+
 
 class AIVision:
     """Window that displays AI stats and the agent's Q-values."""
 
-    def __init__(self, width=300, height=250):
-        self._width = width
-        self._height = height
-        self._window_name = "AI Vision"
-
-        # action names corresponding to the Q-value indices
-        self._action_names = ["none", "jump", "left", "right", "left+jump", "right+jump"]
+    def __init__(self, width: int = 300, height: int = 250) -> None:
+        self._width: int = width
+        self._height: int = height
+        self._window_name: str = "AI Vision"
+        self._action_names: list[str] = ["none", "jump", "left", "right", "left+jump", "right+jump"]
 
         cv2.namedWindow(self._window_name, cv2.WINDOW_NORMAL)
         cv2.moveWindow(self._window_name, 100, 100)
         cv2.resizeWindow(self._window_name, self._width, self._height)
 
-    def display(self, game_state, q_values, last_reward=0.0):
+    def display(
+        self, game_state: GameState | None, q_values: np.ndarray | None, last_reward: float = 0.0
+    ) -> None:
         canvas = np.zeros((self._height, self._width, 3), dtype=np.uint8)
 
         if game_state:
@@ -103,5 +105,5 @@ class AIVision:
         cv2.imshow(self._window_name, canvas)
         cv2.waitKey(1)
 
-    def close(self):
+    def close(self) -> None:
         cv2.destroyWindow(self._window_name)

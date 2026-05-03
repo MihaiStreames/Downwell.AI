@@ -15,19 +15,19 @@ from src.utils.game_attributes import PLAYER_PTR
 
 
 class Player:
-    def __init__(self, pc: pymem.Pymem, game_module: int):
-        self._pc = pc
-        self._game_module = game_module
-        self._attr = PLAYER_PTR
+    def __init__(self, pc: pymem.Pymem, game_module: int) -> None:
+        self._pc: pymem.Pymem = pc
+        self._game_module: int = game_module
+        self._attr: dict[str, dict[str, object]] = PLAYER_PTR
 
     def is_gem_high(self) -> bool:
         value = self.get_value("gemHigh")
         if value is None:
-            logger.debug("Failed to read gemHigh value")
+            logger.trace("Failed to read gemHigh value")
             return False
         return value >= 100
 
-    def get_ptr_addr(self, base: int, offsets: list[int]) -> int:
+    def _get_ptr_addr(self, base: int, offsets: list[int]) -> int:
         try:
             addr = int(self._pc.read_int(base))
             for offset in offsets[:-1]:
@@ -37,7 +37,7 @@ class Player:
         except pymem.exception.MemoryReadError as e:
             raise e
 
-    def get_type(self, attr_type: str, address: int) -> float | None:
+    def _get_type(self, attr_type: str, address: int) -> float | None:
         try:
             return getattr(self._pc, f"read_{attr_type}")(address)
         except AttributeError:
@@ -61,19 +61,11 @@ class Player:
 
         for base, offsets in zip(bases, offsets_list, strict=False):
             try:
-                address = self.get_ptr_addr(self._game_module + base, offsets)
-                value = self.get_type(cast(str, attr_data["type"]), address)
+                address = self._get_ptr_addr(self._game_module + base, offsets)
+                value = self._get_type(cast(str, attr_data["type"]), address)
                 return value
             except pymem.exception.MemoryReadError:
                 continue
 
-        logger.debug(f"Failed to read {attribute} from all available addresses")
+        logger.trace(f"Failed to read {attribute} from all available addresses")
         return None
-
-    def validate_connection(self) -> bool:
-        try:
-            self.get_value("hp")
-            return True
-        except Exception as e:
-            logger.error(f"Lost connection to game process: {e}")
-            return False

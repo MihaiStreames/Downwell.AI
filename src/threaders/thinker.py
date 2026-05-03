@@ -1,8 +1,18 @@
+from collections import deque
+import queue
 import threading
 import time
+from typing import TYPE_CHECKING
 from typing import NamedTuple
 
 from loguru import logger
+
+from src.models.game_state import GameState
+
+
+if TYPE_CHECKING:
+    from src.agents.dqn_agent import DQNAgent
+    from src.core.reward_calculator import RewardCalculator
 
 
 class Action(NamedTuple):
@@ -10,36 +20,55 @@ class Action(NamedTuple):
     frame_id: int
 
 
+def _filter_boundary_action(action: int, xpos: float | None) -> int:
+    if xpos is None:
+        return action
+
+    left_boundary = 180
+    right_boundary = 300
+
+    if xpos <= left_boundary and action == 2:  # left -> no-op
+        return 0
+    if xpos <= left_boundary and action == 4:  # left+jump -> jump
+        return 1
+    if xpos >= right_boundary and action == 3:  # right -> no-op
+        return 0
+    if xpos >= right_boundary and action == 5:  # right+jump -> jump
+        return 1
+
+    return action
+
+
 class ThinkerThread(threading.Thread):
     def __init__(
         self,
-        agent,
-        reward_calc,
-        state_buffer,
-        action_queue,
-        perceptor_lock,
-        decision_fps=60,
-    ):
+        agent: "DQNAgent",
+        reward_calc: "RewardCalculator",
+        state_buffer: deque[GameState],
+        action_queue: queue.Queue[Action],
+        perceptor_lock: threading.Lock,
+        decision_fps: int = 60,
+    ) -> None:
         super().__init__(daemon=True)
 
-        self._agent = agent
-        self._action_queue = action_queue
-        self._perceptor_lock = perceptor_lock
-        self._decision_interval = 1.0 / decision_fps
+        self._agent: DQNAgent = agent
+        self._action_queue: queue.Queue[Action] = action_queue
+        self._perceptor_lock: threading.Lock = perceptor_lock
+        self._decision_interval: float = 1.0 / decision_fps
 
-        self._reward_calc = reward_calc
-        self._state_buffer = state_buffer
+        self._reward_calc: RewardCalculator = reward_calc
+        self._state_buffer: deque[GameState] = state_buffer
 
-        self._last_state = None
-        self._last_action = None
+        self._last_state: GameState | None = None
+        self._last_action: Action | None = None
 
-        self._step_count = 0
-        self.current_reward = 0.0
-        self._episode_reward = 0.0
-        self._experiences_added = 0
-        self._min_ypos = float("inf")
+        self._step_count: int = 0
+        self.current_reward: float = 0.0
+        self._episode_reward: float = 0.0
+        self._experiences_added: int = 0
+        self._min_ypos: float = float("inf")
 
-        self._running = True
+        self._running: bool = True
 
     def run(self) -> None:
         while self._running:
@@ -79,9 +108,18 @@ class ThinkerThread(threading.Thread):
                                     f"Step {self._step_count}: Loss = {loss:.4f}, Reward = {reward:.2f}"
                                 )
 
-                    # make decision
                     action, q_values = self._agent.get_action(current_state)
+                    action = _filter_boundary_action(action, current_state.xpos)
                     action_cmd = Action(action_type=action, frame_id=current_state.frame_id)
+
+                    # drain stale actions before pushing new one to prevent queue lag
+                    # from causing boundary-filtered actions to arrive too late
+                    while not self._action_queue.empty():
+                        try:
+                            self._action_queue.get_nowait()
+                        except queue.Empty:
+                            break
+
                     self._action_queue.put(action_cmd)
 
                     self._last_state = current_state
@@ -90,18 +128,18 @@ class ThinkerThread(threading.Thread):
             except Exception as e:
                 logger.error(f"Thinker error: {e}")
 
-            # maintain decision rate
             elapsed = time.time() - start_time
             sleep_time = self._decision_interval - elapsed
             if sleep_time > 0:
                 time.sleep(sleep_time)
 
-    def get_episode_stats(self) -> dict:
-        stats = {
+    def get_episode_stats(self) -> dict[str, float | int]:
+        stats: dict[str, float | int] = {
             "episode_reward": self._episode_reward,
             "experiences_added": self._experiences_added,
             "steps": self._step_count,
             "max_ypos_reached": self._min_ypos if self._min_ypos != float("inf") else 0.0,
+            "level_reached": self._reward_calc.current_level,
         }
 
         self._episode_reward = 0.0

@@ -1,7 +1,7 @@
 # Python
 __pycache__/
 .venv/
-ruff_cache/
+.ruff_cache/
 
 # Data files
 *.pth

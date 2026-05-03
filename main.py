@@ -3,6 +3,7 @@ import sys
 
 if sys.platform != "win32":
     raise RuntimeError("This AI only works on Windows.")
+
 import csv
 from pathlib import Path
 import time
@@ -70,7 +71,7 @@ def main() -> None:
                     max_combo = max(max_combo, state.combo)
                     final_gems = state.gems
 
-                    if state.hp <= 0:
+                    if state.hp is not None and state.hp <= 0:
                         logger.info("Episode ended")
                         time.sleep(0.3)
                         break
@@ -92,7 +93,8 @@ def main() -> None:
                 f" dur={stats['duration']:.1f}s steps={stats['steps']}"
                 f" combo={stats['max_combo']:.0f} gems={stats['final_gems']:.0f}"
                 f" ypos={stats['max_ypos_reached']:.0f}"
-                f" mem={len(agent.memory)}/{agent.memory.capacity}"
+                f" level={stats.get('level_reached', 1)}"
+                f" mem={agent.memory.size}/{agent.memory.capacity}"
                 f" ε={stats['epsilon']:.4f} lr={stats['learning_rate']:.6f}"
             )
 
@@ -105,6 +107,7 @@ def main() -> None:
                     "max_combo": stats["max_combo"],
                     "final_gems": stats["final_gems"],
                     "max_ypos_reached": stats["max_ypos_reached"],
+                    "level_reached": stats.get("level_reached", 1),
                     "epsilon": stats["epsilon"],
                     "learning_rate": stats["learning_rate"],
                 }

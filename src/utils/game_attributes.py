@@ -1,4 +1,4 @@
-PLAYER_PTR = {
+PLAYER_PTR: dict[str, dict[str, object]] = {
     "ypos": {"base": 0x0005220C, "offsets": [0x360], "type": "float"},
     "xpos": {
         "bases": [0x00534288, 0x005479FC],

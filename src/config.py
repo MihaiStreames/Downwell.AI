@@ -9,8 +9,8 @@ class Config:
     death_penalty: float = -50.0
     depth_reward: float = 2.0
     gem_reward: float = 1.0
-    combo_threshold: int = 4
-    combo_bonus_multiplier: float = 5.0
+    ammo_kill_reward: float = 2.0
+    combo_delta_multiplier: float = 3.0
     step_penalty: float = -0.01
     damage_penalty: float = -2.0
     min_reward_clip: float = -100.0
@@ -18,10 +18,10 @@ class Config:
 
     # agent hyperparameters
     learning_rate: float = 0.0001
-    gamma: float = 0.9997
+    gamma: float = 0.99
     epsilon_start: float = 1.0
     epsilon_min: float = 0.1
-    epsilon_decay: float = 0.999985
+    epsilon_decay: float = 0.99997
     train_start: int = 500
     batch_size: int = 512
     pretrained_model: str = "models/downwell_ai_best.pth"
@@ -38,4 +38,4 @@ class Config:
     image_size: tuple[int, int] = field(default_factory=lambda: (84, 84))
     frame_stack: int = 4
     perceptor_fps: int = 60
-    thinker_fps: int = 15
+    thinker_fps: int = 30
