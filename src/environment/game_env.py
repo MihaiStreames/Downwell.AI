@@ -17,6 +17,10 @@ import pygetwindow as gw
 
 from src.config import Config
 from src.environment.capture import ScreenCapture
+from src.utils.consts import ACTION_KEYS
+from src.utils.consts import CROP_LEFT_RATIO
+from src.utils.consts import CROP_RIGHT_RATIO
+from src.utils.consts import WINDOW_TITLE
 
 
 if TYPE_CHECKING:
@@ -25,11 +29,9 @@ if TYPE_CHECKING:
 
 def _crop_game_area(screenshot: np.ndarray) -> np.ndarray:
     height, width = screenshot.shape[:2]
-    game_left = width * 3 // 10
-    game_right = width * 7 // 10
-    game_top = 0
-    game_bottom = height
-    return screenshot[game_top:game_bottom, game_left:game_right]
+    game_left = int(width * CROP_LEFT_RATIO)
+    game_right = int(width * CROP_RIGHT_RATIO)
+    return screenshot[0:height, game_left:game_right]
 
 
 def _is_game_over(player: "Player") -> bool:
@@ -39,28 +41,21 @@ def _is_game_over(player: "Player") -> bool:
 
 class CustomDownwellEnvironment:
     def __init__(self, config: Config) -> None:
-        self._game_window: gw.Win32Window | None = None
-
         self._image_size: tuple[int, int] = config.image_size
         self._stack_size: int = config.frame_stack
-        self._frame_stack: deque[np.ndarray] = deque(maxlen=self._stack_size)
 
-        self.actions: dict[int, set[str]] = {
-            0: set(),
-            1: {"space"},
-            2: {"left"},
-            3: {"right"},
-            4: {"left", "space"},
-            5: {"right", "space"},
-        }
+        self.actions: dict[int, set[str]] = ACTION_KEYS
 
         self._capture_engine: ScreenCapture = ScreenCapture()
+        self._frame_stack: deque[np.ndarray] = deque(maxlen=self._stack_size)
+
+        self._game_window: gw.Win32Window | None = None
         self._capture_configured: bool = False
 
     def _window_exists(self) -> bool:
-        windows = gw.getWindowsWithTitle("Downwell")
+        windows = gw.getWindowsWithTitle(WINDOW_TITLE)
         for window in windows:
-            if window.title == "Downwell":
+            if window.title == WINDOW_TITLE:
                 self._game_window = window
                 logger.info("Found Downwell window!")
                 return True

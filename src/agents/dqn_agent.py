@@ -9,6 +9,8 @@ from torch import optim
 
 from src.config import Config
 from src.models.game_state import GameState
+from src.utils.consts import ADAM_EPS
+from src.utils.consts import LR_SCHEDULER_GAMMA
 
 from .dqn_network import DQN
 from .replay import ReplayBuffer
@@ -48,17 +50,16 @@ class DQNAgent:
             logger.info("Starting with fresh model...")
 
     def __init__(self, action_space: dict[int, set[str]], config: Config) -> None:
-        self._epsilon: float = config.epsilon_start
-        self._epsilon_min: float = config.epsilon_min
-        self._epsilon_decay: float = config.epsilon_decay
+        self._action_size: int = len(action_space)
 
         self._gamma: float = config.gamma
         self._learning_rate: float = config.learning_rate
-
-        self._action_size: int = len(action_space)
-
         self._batch_size: int = config.batch_size
         self._train_start: int = config.train_start
+        self._tau: float = config.target_update_tau
+        self._grad_clip_norm: float = config.grad_clip_norm
+        self._epsilon_min: float = config.epsilon_min
+        self._epsilon_decay: float = config.epsilon_decay
 
         self._device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -70,6 +71,7 @@ class DQNAgent:
                 config.frame_stack,
             ),
             device=self._device,
+            flip_probability=config.replay_flip_probability,
         )
 
         self._q_network: DQN = DQN(
@@ -80,15 +82,15 @@ class DQNAgent:
             input_channels=config.frame_stack, num_actions=self._action_size
         ).to(self._device)
 
-        self._tau: float = config.target_update_tau
-        self._grad_clip_norm: float = config.grad_clip_norm
         self._optimizer: optim.Adam = optim.Adam(
-            self._q_network.parameters(), lr=self._learning_rate, eps=1e-8
+            self._q_network.parameters(), lr=self._learning_rate, eps=ADAM_EPS
         )
 
         self.scheduler: optim.lr_scheduler.StepLR = optim.lr_scheduler.StepLR(
-            self._optimizer, step_size=config.lr_step_size, gamma=0.9
+            self._optimizer, step_size=config.lr_step_size, gamma=LR_SCHEDULER_GAMMA
         )
+
+        self._epsilon: float = config.epsilon_start
 
         if config.pretrained_model and Path(config.pretrained_model).exists():
             self._load_model(config.pretrained_model)

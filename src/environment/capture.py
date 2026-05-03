@@ -11,6 +11,7 @@ class ScreenCapture:
 
     def __init__(self) -> None:
         self._thread_local: threading.local = threading.local()
+
         self._monitor: dict[str, int] | None = None
         self._last_bbox: tuple[int, int, int, int] | None = None
 

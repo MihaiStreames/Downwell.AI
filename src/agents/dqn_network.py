@@ -2,6 +2,21 @@ import torch
 from torch import nn
 import torch.nn.functional as F  # noqa: N812
 
+from src.utils.consts import CNN_FLATTENED_DIM
+from src.utils.consts import CONV1_CHANNELS
+from src.utils.consts import CONV1_KERNEL
+from src.utils.consts import CONV1_STRIDE
+from src.utils.consts import CONV2_CHANNELS
+from src.utils.consts import CONV2_KERNEL
+from src.utils.consts import CONV2_STRIDE
+from src.utils.consts import CONV3_CHANNELS
+from src.utils.consts import CONV3_KERNEL
+from src.utils.consts import CONV3_STRIDE
+from src.utils.consts import DROPOUT_RATE
+from src.utils.consts import FC1_DIM
+from src.utils.consts import FC2_DIM
+from src.utils.consts import NUM_ACTIONS
+
 
 class DQN(nn.Module):
     def _initialize_weights(self) -> None:
@@ -14,18 +29,24 @@ class DQN(nn.Module):
                 nn.init.kaiming_normal_(m.weight)
                 nn.init.constant_(m.bias, 0)
 
-    def __init__(self, input_channels: int = 4, num_actions: int = 6) -> None:
+    def __init__(self, input_channels: int = 4, num_actions: int = NUM_ACTIONS) -> None:
         super().__init__()
 
-        self._conv1 = nn.Conv2d(input_channels, 32, kernel_size=8, stride=4)
-        self._conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
-        self._conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
+        self._conv1 = nn.Conv2d(
+            input_channels, CONV1_CHANNELS, kernel_size=CONV1_KERNEL, stride=CONV1_STRIDE
+        )
+        self._conv2 = nn.Conv2d(
+            CONV1_CHANNELS, CONV2_CHANNELS, kernel_size=CONV2_KERNEL, stride=CONV2_STRIDE
+        )
+        self._conv3 = nn.Conv2d(
+            CONV2_CHANNELS, CONV3_CHANNELS, kernel_size=CONV3_KERNEL, stride=CONV3_STRIDE
+        )
 
-        self._fc1 = nn.Linear(7 * 7 * 64, 512)
-        self._fc2 = nn.Linear(512, 256)
-        self._action_head = nn.Linear(256, num_actions)
+        self._fc1 = nn.Linear(CNN_FLATTENED_DIM, FC1_DIM)
+        self._fc2 = nn.Linear(FC1_DIM, FC2_DIM)
+        self._action_head = nn.Linear(FC2_DIM, num_actions)
 
-        self._dropout = nn.Dropout(0.1)
+        self._dropout = nn.Dropout(DROPOUT_RATE)
 
         self._initialize_weights()
 

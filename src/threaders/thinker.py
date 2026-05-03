@@ -1,74 +1,87 @@
 from collections import deque
-import queue
 import threading
 import time
 from typing import TYPE_CHECKING
-from typing import NamedTuple
 
 from loguru import logger
 
 from src.models.game_state import GameState
+from src.utils.consts import ACTION_JUMP
+from src.utils.consts import ACTION_LEFT
+from src.utils.consts import ACTION_LEFT_JUMP
+from src.utils.consts import ACTION_NONE
+from src.utils.consts import ACTION_RIGHT
+from src.utils.consts import ACTION_RIGHT_JUMP
+from src.utils.consts import HP_TRANSITION_SENTINEL
+from src.utils.consts import WALL_LEFT
+from src.utils.consts import WALL_RIGHT
 
 
 if TYPE_CHECKING:
     from src.agents.dqn_agent import DQNAgent
     from src.core.reward_calculator import RewardCalculator
-
-
-class Action(NamedTuple):
-    action_type: int
-    frame_id: int
+    from src.threaders.actor import ActorThread
 
 
 def _filter_boundary_action(action: int, xpos: float | None) -> int:
     if xpos is None:
         return action
 
-    left_boundary = 180
-    right_boundary = 300
-
-    if xpos <= left_boundary and action == 2:  # left -> no-op
-        return 0
-    if xpos <= left_boundary and action == 4:  # left+jump -> jump
-        return 1
-    if xpos >= right_boundary and action == 3:  # right -> no-op
-        return 0
-    if xpos >= right_boundary and action == 5:  # right+jump -> jump
-        return 1
+    if xpos <= WALL_LEFT and action == ACTION_LEFT:
+        return ACTION_NONE
+    if xpos <= WALL_LEFT and action == ACTION_LEFT_JUMP:
+        return ACTION_JUMP
+    if xpos >= WALL_RIGHT and action == ACTION_RIGHT:
+        return ACTION_NONE
+    if xpos >= WALL_RIGHT and action == ACTION_RIGHT_JUMP:
+        return ACTION_JUMP
 
     return action
 
 
 class ThinkerThread(threading.Thread):
+    def _reset_episode(self) -> None:
+        self._episode_reward = 0.0
+        self._experiences_added = 0
+        self._step_count = 0
+        self._min_ypos = float("inf")
+        self._last_state = None
+        self._last_action = None
+        self._current_reward = 0.0
+
     def __init__(
         self,
         agent: "DQNAgent",
         reward_calc: "RewardCalculator",
+        actor: "ActorThread",
         state_buffer: deque[GameState],
-        action_queue: queue.Queue[Action],
         perceptor_lock: threading.Lock,
         decision_fps: int = 60,
     ) -> None:
         super().__init__(daemon=True)
 
         self._agent: DQNAgent = agent
-        self._action_queue: queue.Queue[Action] = action_queue
+        self._reward_calc: RewardCalculator = reward_calc
+        self._actor: ActorThread = actor
+        self._state_buffer: deque[GameState] = state_buffer
         self._perceptor_lock: threading.Lock = perceptor_lock
+
         self._decision_interval: float = 1.0 / decision_fps
 
-        self._reward_calc: RewardCalculator = reward_calc
-        self._state_buffer: deque[GameState] = state_buffer
-
-        self._last_state: GameState | None = None
-        self._last_action: Action | None = None
-
-        self._step_count: int = 0
-        self.current_reward: float = 0.0
-        self._episode_reward: float = 0.0
-        self._experiences_added: int = 0
-        self._min_ypos: float = float("inf")
+        self._last_state: GameState | None
+        self._last_action: int | None
+        self._step_count: int
+        self._episode_reward: float
+        self._experiences_added: int
+        self._min_ypos: float
+        self._current_reward: float
+        self._reset_episode()
 
         self._running: bool = True
+
+    @property
+    def current_reward(self) -> float:
+        return self._current_reward
 
     def run(self) -> None:
         while self._running:
@@ -84,19 +97,22 @@ class ThinkerThread(threading.Thread):
                     if current_state.ypos is not None:
                         self._min_ypos = min(self._min_ypos, current_state.ypos)
 
-                    is_transition_state = current_state.hp == 999.0
+                    is_transition_state = current_state.hp == HP_TRANSITION_SENTINEL
 
                     if self._last_state is not None and self._last_action is not None:
                         reward = self._reward_calc.calculate_reward(self._last_state, current_state)
-                        self.current_reward = reward
+                        self._current_reward = reward
                         self._episode_reward += reward
 
-                        if not is_transition_state and self._last_state.hp != 999.0:
+                        if (
+                            not is_transition_state
+                            and self._last_state.hp != HP_TRANSITION_SENTINEL
+                        ):
                             done = current_state.hp is not None and current_state.hp <= 0
 
                             loss = self._agent.train(
                                 self._last_state,
-                                self._last_action.action_type,
+                                self._last_action,
                                 reward,
                                 current_state,
                                 done,
@@ -110,20 +126,10 @@ class ThinkerThread(threading.Thread):
 
                     action, q_values = self._agent.get_action(current_state)
                     action = _filter_boundary_action(action, current_state.xpos)
-                    action_cmd = Action(action_type=action, frame_id=current_state.frame_id)
-
-                    # drain stale actions before pushing new one to prevent queue lag
-                    # from causing boundary-filtered actions to arrive too late
-                    while not self._action_queue.empty():
-                        try:
-                            self._action_queue.get_nowait()
-                        except queue.Empty:
-                            break
-
-                    self._action_queue.put(action_cmd)
+                    self._actor.set_action(action)
 
                     self._last_state = current_state
-                    self._last_action = action_cmd
+                    self._last_action = action
 
             except Exception as e:
                 logger.error(f"Thinker error: {e}")
@@ -142,13 +148,7 @@ class ThinkerThread(threading.Thread):
             "level_reached": self._reward_calc.current_level,
         }
 
-        self._episode_reward = 0.0
-        self._experiences_added = 0
-        self._step_count = 0
-        self._min_ypos = float("inf")
-        self._last_state = None
-        self._last_action = None
-
+        self._reset_episode()
         return stats
 
     def stop(self) -> None:

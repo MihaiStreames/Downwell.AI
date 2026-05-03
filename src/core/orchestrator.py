@@ -1,5 +1,4 @@
 from collections import deque
-import queue
 import time
 from typing import TYPE_CHECKING
 
@@ -32,19 +31,20 @@ class DownwellAI:
         self._reward_calc: RewardCalculator = reward_calculator
         self._config: Config = config
 
+        self._state_buffer: deque[GameState] | None = None
+
         self._perceptor: PerceptorThread | None = None
         self._thinker: ThinkerThread | None = None
         self._actor: ActorThread | None = None
-        self._state_buffer: deque[GameState] | None = None
-        self._action_queue: queue.Queue | None = None
 
     @property
     def thinker(self) -> ThinkerThread | None:
         return self._thinker
 
     def start(self) -> None:
-        self._state_buffer = deque(maxlen=120)
-        self._action_queue = queue.Queue()
+        self._state_buffer = deque(maxlen=self._config.state_buffer_maxlen)
+
+        self._actor = ActorThread()
 
         self._perceptor = PerceptorThread(
             self._player,
@@ -55,12 +55,11 @@ class DownwellAI:
         self._thinker = ThinkerThread(
             self._agent,
             self._reward_calc,
+            self._actor,
             self._state_buffer,
-            self._action_queue,
             self._perceptor.lock,
             decision_fps=self._config.thinker_fps,
         )
-        self._actor = ActorThread(self._env, self._action_queue)
 
         self._perceptor.start()
         self._thinker.start()

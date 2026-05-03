@@ -11,6 +11,7 @@ from loguru import logger
 import pymem
 import pymem.exception
 
+from src.utils.consts import GEM_HIGH_THRESHOLD
 from src.utils.game_attributes import PLAYER_PTR
 
 
@@ -25,7 +26,7 @@ class Player:
         if value is None:
             logger.trace("Failed to read gemHigh value")
             return False
-        return value >= 100
+        return value >= GEM_HIGH_THRESHOLD
 
     def _get_ptr_addr(self, base: int, offsets: list[int]) -> int:
         try:

@@ -19,6 +19,7 @@ from src.core.reward_calculator import RewardCalculator
 from src.core.vision import AIVision
 from src.environment.game_env import CustomDownwellEnvironment
 from src.environment.mem_extractor import Player
+from src.utils.consts import PROCESS_NAME
 
 
 def main() -> None:
@@ -31,8 +32,8 @@ def main() -> None:
     config = Config()
 
     try:
-        proc = pymem.Pymem("downwell.exe")
-        game_module = module_from_name(proc.process_handle, "downwell.exe").lpBaseOfDll
+        proc = pymem.Pymem(PROCESS_NAME)
+        game_module = module_from_name(proc.process_handle, PROCESS_NAME).lpBaseOfDll
     except Exception as e:
         logger.error(f"Failed to connect to game: {e}")
         return
@@ -89,13 +90,13 @@ def main() -> None:
             )
 
             logger.info(
-                f"Episode {episode} | reward={stats['episode_reward']:.1f}"
-                f" dur={stats['duration']:.1f}s steps={stats['steps']}"
-                f" combo={stats['max_combo']:.0f} gems={stats['final_gems']:.0f}"
-                f" ypos={stats['max_ypos_reached']:.0f}"
-                f" level={stats.get('level_reached', 1)}"
+                f"Episode {episode} | rwd={stats['episode_reward']:.1f}"
+                f" dur={stats['duration']:.1f}s stp={stats['steps']}"
+                f" cmb={stats['max_combo']:.0f} gms={stats['final_gems']:.0f}"
+                f" yps={stats['max_ypos_reached']:.0f}"
+                f" lvl={stats.get('level_reached', 1)}"
                 f" mem={agent.memory.size}/{agent.memory.capacity}"
-                f" ε={stats['epsilon']:.4f} lr={stats['learning_rate']:.6f}"
+                f" eps={stats['epsilon']:.4f} lrn={stats['learning_rate']:.6f}"
             )
 
             training_history.append(

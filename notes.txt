@@ -1,0 +1,8 @@
+The hardcoded _action_names should use NUM_ACTIONS-keyed lookup or be derived from consts. Quick fix: use the action ordering implicit in ACTION_KEYS.
+
+Classes ordering:
+
+1. Injected dependencies (player, env, agent, config-derived params)
+2. Owned resources (queues, locks, networks, optimizers, frame stacks)
+3. Mutable runtime state (counters, last_state, history, episode stats)
+4. Lifecycle flag (_running) last

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from loguru import logger
 
 from src.models.game_state import GameState
+from src.utils.consts import HP_TRANSITION_SENTINEL
 
 
 if TYPE_CHECKING:
@@ -22,7 +23,6 @@ class PerceptorThread(threading.Thread):
         perception_fps: int = 60,
     ) -> None:
         super().__init__(daemon=True)
-        self._lock: threading.Lock = threading.Lock()
 
         self._player: Player = player
         self._env: CustomDownwellEnvironment = env
@@ -30,7 +30,11 @@ class PerceptorThread(threading.Thread):
 
         self._target_fps: int = perception_fps
         self._frame_interval: float = 1.0 / perception_fps
+
+        self._lock: threading.Lock = threading.Lock()
+
         self._frame_count: int = 0
+
         self._running: bool = True
 
     @property
@@ -59,7 +63,7 @@ class PerceptorThread(threading.Thread):
 
                 # sentinel HP so reward_calculator ignores transition frames
                 if is_transition_state:
-                    hp = 999.0
+                    hp = HP_TRANSITION_SENTINEL
 
                 gems = self._player.get_value("gems") or 0
                 combo = self._player.get_value("combo") or 0

@@ -10,6 +10,7 @@ class AIVision:
     def __init__(self, width: int = 300, height: int = 250) -> None:
         self._width: int = width
         self._height: int = height
+
         self._window_name: str = "AI Vision"
         self._action_names: list[str] = ["none", "jump", "left", "right", "left+jump", "right+jump"]
 
