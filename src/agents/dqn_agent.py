@@ -15,18 +15,19 @@ from .replay import ReplayBuffer
 
 class DQNAgent:
     def __init__(self, action_space: dict, config: Config):
-        self.action_space = action_space
-        self.action_size = len(action_space)
-
-        self.gamma = config.gamma
         self.epsilon = config.epsilon_start
-        self.epsilon_min = config.epsilon_min
-        self.epsilon_decay = config.epsilon_decay
-        self.learning_rate = config.learning_rate
-        self.batch_size = config.batch_size
-        self.train_start = config.train_start
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._action_space = action_space
+        self._action_size = len(action_space)
+
+        self._gamma = config.gamma
+        self._epsilon_min = config.epsilon_min
+        self._epsilon_decay = config.epsilon_decay
+        self._learning_rate = config.learning_rate
+        self._batch_size = config.batch_size
+        self._train_start = config.train_start
+
+        self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.memory = ReplayBuffer(
             capacity=config.memory_size,
@@ -35,19 +36,24 @@ class DQNAgent:
                 config.image_size[1],
                 config.frame_stack,
             ),
-            device=self.device,
+            device=self._device,
         )
 
-        self.q_network = DQN(input_channels=config.frame_stack, num_actions=self.action_size).to(
-            self.device
+        self._q_network = DQN(input_channels=config.frame_stack, num_actions=self._action_size).to(
+            self._device
         )
 
-        self.target_network = DQN(
-            input_channels=config.frame_stack, num_actions=self.action_size
-        ).to(self.device)
+        self._target_network = DQN(
+            input_channels=config.frame_stack, num_actions=self._action_size
+        ).to(self._device)
 
-        self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.learning_rate, eps=1e-8)
-        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=20000, gamma=0.9)
+        self._tau = config.target_update_tau
+        self._grad_clip_norm = config.grad_clip_norm
+        self._optimizer = optim.Adam(self._q_network.parameters(), lr=self._learning_rate, eps=1e-8)
+
+        self.scheduler = optim.lr_scheduler.StepLR(
+            self._optimizer, step_size=config.lr_step_size, gamma=0.9
+        )
 
         if config.pretrained_model and Path(config.pretrained_model).exists():
             self.load_model(config.pretrained_model)
@@ -56,51 +62,57 @@ class DQNAgent:
             self.update_target_network()
 
         logger.info(f"Agent initialized on: {torch.cuda.get_device_name()}")
-        logger.info(f"Gamma: {self.gamma}")
+        logger.info(f"Gamma: {self._gamma}")
         logger.info(f"Memory: {self.memory.capacity:,}")
-        logger.info(f"Batch size: {self.batch_size}")
-        logger.info(f"Training starts: {self.train_start:,}")
-        logger.info(f"Epsilon: {self.epsilon:.3f} → {self.epsilon_min:.3f}")
+        logger.info(f"Batch size: {self._batch_size}")
+        logger.info(f"Training starts: {self._train_start:,}")
+        logger.info(f"Epsilon: {self.epsilon:.3f} -> {self._epsilon_min:.3f}")
 
     def update_target_network(self):
-        self.target_network.load_state_dict(self.q_network.state_dict())
+        for tp, op in zip(
+            self._target_network.parameters(), self._q_network.parameters(), strict=False
+        ):
+            tp.data.copy_(self._tau * op.data + (1.0 - self._tau) * tp.data)
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.add(state, action, reward, next_state, done)
 
     def get_action(self, game_state):
         if game_state is None:
-            return random.randrange(self.action_size), np.zeros(self.action_size)
+            return random.randrange(self._action_size), np.zeros(self._action_size)
 
         if random.uniform(0, 1) <= self.epsilon:
-            return random.randrange(self.action_size), np.zeros(self.action_size)
+            return random.randrange(self._action_size), np.zeros(self._action_size)
 
         state = game_state.screenshot
         if state is None:
-            return random.randrange(self.action_size), np.zeros(self.action_size)
+            return random.randrange(self._action_size), np.zeros(self._action_size)
 
         # direct tensor conversion
         state_tensor = (
-            torch.from_numpy(state).permute(2, 0, 1).unsqueeze(0).to(self.device, non_blocking=True)
+            torch.from_numpy(state)
+            .permute(2, 0, 1)
+            .unsqueeze(0)
+            .to(self._device, non_blocking=True)
         )
 
         with torch.no_grad():
-            actions = self.q_network(state_tensor)
+            actions = self._q_network(state_tensor)
 
         return torch.argmax(actions).item(), actions.cpu().numpy().flatten()
 
     def train(self, state, action, reward, next_state, done):
         self.remember(state.screenshot, action, reward, next_state.screenshot, done)
 
-        if len(self.memory) >= self.train_start:
+        if len(self.memory) >= self._train_start:
             return self.replay()
         return None
 
     def replay(self):
-        if len(self.memory) < self.batch_size:
+        if len(self.memory) < self._batch_size:
             return None
 
-        batch = self.memory.sample(self.batch_size)
+        batch = self.memory.sample(self._batch_size)
         if batch is None:
             return None
 
@@ -116,43 +128,40 @@ class DQNAgent:
         state_tensors = state_tensors.permute(0, 3, 1, 2)
         next_state_tensors = next_state_tensors.permute(0, 3, 1, 2)
 
-        # forward pass
-        # current Q-values
-        current_q_values = self.q_network(state_tensors).gather(1, action_tensors.unsqueeze(-1))
+        current_q_values = self._q_network(state_tensors).gather(1, action_tensors.unsqueeze(-1))
 
-        # target Q-values
+        # Double DQN: online net selects action, target net evaluates
         with torch.no_grad():
-            next_q_values = self.target_network(next_state_tensors).max(1)[0]
-            target_q_values = reward_tensors + (self.gamma * next_q_values * ~done_tensors)
+            next_actions = self._q_network(next_state_tensors).argmax(1, keepdim=True)
+            next_q_values = (
+                self._target_network(next_state_tensors).gather(1, next_actions).squeeze(1)
+            )
+            target_q_values = reward_tensors + (self._gamma * next_q_values * ~done_tensors)
 
-        # loss
         loss = nn.SmoothL1Loss()(current_q_values.squeeze(), target_q_values)
 
-        # backward pass
-        self.optimizer.zero_grad()
+        self._optimizer.zero_grad()
         loss.backward()
-
-        # gradient clipping for stability
-        torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 10.0)
-
-        self.optimizer.step()
+        torch.nn.utils.clip_grad_norm_(self._q_network.parameters(), self._grad_clip_norm)
+        self._optimizer.step()
         self.scheduler.step()
+        self.update_target_network()  # Polyak soft update every step
 
         # decay epsilon
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
+        if self.epsilon > self._epsilon_min:
+            self.epsilon *= self._epsilon_decay
 
         return loss.item()
 
     def save_model(self, filepath):
         torch.save(
             {
-                "q_network_state_dict": self.q_network.state_dict(),
-                "target_network_state_dict": self.target_network.state_dict(),
-                "optimizer_state_dict": self.optimizer.state_dict(),
+                "q_network_state_dict": self._q_network.state_dict(),
+                "target_network_state_dict": self._target_network.state_dict(),
+                "optimizer_state_dict": self._optimizer.state_dict(),
                 "scheduler_state_dict": self.scheduler.state_dict(),
                 "epsilon": self.epsilon,
-                "gamma": self.gamma,
+                "gamma": self._gamma,
                 "memory_size": len(self.memory),
             },
             filepath,
@@ -160,23 +169,23 @@ class DQNAgent:
 
     def load_model(self, filepath):
         try:
-            checkpoint = torch.load(filepath, map_location=self.device, weights_only=False)
+            checkpoint = torch.load(filepath, map_location=self._device, weights_only=False)
 
-            self.q_network.load_state_dict(
+            self._q_network.load_state_dict(
                 checkpoint.get("q_network_state_dict", checkpoint), strict=False
             )
-            self.target_network.load_state_dict(
+            self._target_network.load_state_dict(
                 checkpoint.get("target_network_state_dict", checkpoint), strict=False
             )
 
             if "optimizer_state_dict" in checkpoint:
                 try:
-                    self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+                    self._optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
                 except Exception as e:
                     logger.warning(f"Optimizer state incompatible: {e}")
 
-            self.epsilon = max(checkpoint.get("epsilon", 0.2), self.epsilon_min)
-            self.gamma = checkpoint.get("gamma", self.gamma)
+            self.epsilon = max(checkpoint.get("epsilon", 0.2), self._epsilon_min)
+            self._gamma = checkpoint.get("gamma", self._gamma)
 
             logger.success(f"Model loaded. Epsilon: {self.epsilon:.3f}")
 

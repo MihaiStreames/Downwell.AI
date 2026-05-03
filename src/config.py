@@ -22,15 +22,17 @@ class Config:
     epsilon_start: float = 1.0
     epsilon_min: float = 0.1
     epsilon_decay: float = 0.999985
-    train_start: int = 5000
+    train_start: int = 500
     batch_size: int = 512
     pretrained_model: str = "models/downwell_ai_best.pth"
 
     # training loop
     max_episodes: int = 5000
     memory_size: int = 100000
-    target_update_frequency: int = 50
+    target_update_tau: float = 0.005  # Polyak averaging; replaces hard copy
     save_frequency: int = 25
+    grad_clip_norm: float = 1.0
+    lr_step_size: int = 100000  # steps between LR decay (was 20000)
 
     # environment / threading
     image_size: tuple[int, int] = field(default_factory=lambda: (84, 84))

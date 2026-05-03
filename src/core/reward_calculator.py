@@ -4,13 +4,13 @@ from src.models.game_state import GameState
 
 class RewardCalculator:
     def __init__(self, config: Config):
-        self.config = config
+        self._config = config
 
-        self.max_depth_achieved: float = 0.0
+        self._max_depth_achieved: float = 0.0
 
-        self.last_hp: float | None = None
-        self.last_gems: float = 0.0
-        self.last_combo: float = 0.0
+        self._last_hp: float | None = None
+        self._last_gems: float = 0.0
+        self._last_combo: float = 0.0
 
     @staticmethod
     def _detect_level_completion(state: GameState, next_state: GameState) -> bool:
@@ -47,63 +47,63 @@ class RewardCalculator:
         # level completion bonus
         if self._detect_level_completion(state, next_state):
             self.reset_episode()
-            return self.config.level_complete_bonus
+            return self._config.level_complete_bonus
 
         if state.hp == 999.0 or next_state.hp == 999.0:
             return 0.0
 
         # death penalty
         if state.hp is not None and state.hp > 0 and (next_state.hp is None or next_state.hp <= 0):
-            return float(self.config.death_penalty)
+            return float(self._config.death_penalty)
 
         # no reward if already dead
         if next_state.hp is None or next_state.hp <= 0:
             return 0.0
 
         # default step penalty
-        reward = self.config.step_penalty
+        reward = self._config.step_penalty
 
         # main reward: going deeper
         if (
             state.ypos is not None
             and next_state.ypos is not None
-            and next_state.ypos < self.max_depth_achieved
+            and next_state.ypos < self._max_depth_achieved
         ):
-            progress = self.max_depth_achieved - next_state.ypos
-            reward += progress * self.config.depth_reward
-            self.max_depth_achieved = next_state.ypos
+            progress = self._max_depth_achieved - next_state.ypos
+            reward += progress * self._config.depth_reward
+            self._max_depth_achieved = next_state.ypos
 
         # gem reward
-        gems_collected = next_state.gems - self.last_gems
+        gems_collected = next_state.gems - self._last_gems
         if gems_collected > 0:
-            reward += gems_collected * self.config.gem_reward
-        self.last_gems = next_state.gems
+            reward += gems_collected * self._config.gem_reward
+        self._last_gems = next_state.gems
 
         # combo bonus
-        if next_state.combo > self.config.combo_threshold:
-            reward += self.config.combo_bonus_multiplier * next_state.combo
-        self.last_combo = next_state.combo
+        if next_state.combo > self._config.combo_threshold:
+            reward += self._config.combo_bonus_multiplier * next_state.combo
+        self._last_combo = next_state.combo
 
         # damage penalty
-        if self.last_hp is not None and next_state.hp is not None:
-            damage_taken = self.last_hp - next_state.hp
+        if self._last_hp is not None and next_state.hp is not None:
+            damage_taken = self._last_hp - next_state.hp
             if damage_taken > 0:
-                damage_penalty = damage_taken * self.config.damage_penalty
+                damage_penalty = damage_taken * self._config.damage_penalty
                 reward += damage_penalty
 
         # update HP tracking
         if next_state.hp is not None:
-            self.last_hp = next_state.hp
+            self._last_hp = next_state.hp
 
         # boundary penalty
         boundary_penalty = self.calculate_boundary_penalty(next_state.xpos)
         reward += boundary_penalty
 
         # clip the reward
-        return float(max(self.config.min_reward_clip, min(reward, self.config.max_reward_clip)))
+        return float(max(self._config.min_reward_clip, min(reward, self._config.max_reward_clip)))
 
     def reset_episode(self) -> None:
-        self.max_depth_achieved = 0.0
-        self.last_hp = None
-        self.last_gems = 0.0
-        self.last_combo = 0.0
+        self._max_depth_achieved = 0.0
+        self._last_hp = None
+        self._last_gems = 0.0
+        self._last_combo = 0.0

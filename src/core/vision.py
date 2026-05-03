@@ -6,19 +6,19 @@ class AIVision:
     """Window that displays AI stats and the agent's Q-values."""
 
     def __init__(self, width=300, height=250):
-        self.width = width
-        self.height = height
-        self.window_name = "AI Vision"
+        self._width = width
+        self._height = height
+        self._window_name = "AI Vision"
 
         # action names corresponding to the Q-value indices
-        self.action_names = ["none", "jump", "left", "right", "left+jump", "right+jump"]
+        self._action_names = ["none", "jump", "left", "right", "left+jump", "right+jump"]
 
-        cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
-        cv2.moveWindow(self.window_name, 100, 100)
-        cv2.resizeWindow(self.window_name, self.width, self.height)
+        cv2.namedWindow(self._window_name, cv2.WINDOW_NORMAL)
+        cv2.moveWindow(self._window_name, 100, 100)
+        cv2.resizeWindow(self._window_name, self._width, self._height)
 
     def display(self, game_state, q_values, last_reward=0.0):
-        canvas = np.zeros((self.height, self.width, 3), dtype=np.uint8)
+        canvas = np.zeros((self._height, self._width, 3), dtype=np.uint8)
 
         if game_state:
             hp_text = f"HP: {game_state.hp:.0f}" if game_state.hp is not None else "HP: N/A"
@@ -76,7 +76,7 @@ class AIVision:
                 color = (0, 255, 0) if i == np.argmax(q_values) else (100, 100, 100)
 
                 normalized_q = (q_val - min_q) / q_range if q_range > 0 else 0.5
-                bar_width = int(normalized_q * (self.width - bar_x_start - 10))
+                bar_width = int(normalized_q * (self._width - bar_x_start - 10))
                 bar_width = max(1, bar_width)
 
                 y_pos = 25 + i * 22
@@ -89,7 +89,7 @@ class AIVision:
                     -1,
                 )
 
-                text = f"{self.action_names[i]}: {q_val:.2f}"
+                text = f"{self._action_names[i]}: {q_val:.2f}"
                 cv2.putText(
                     canvas,
                     text,
@@ -100,8 +100,8 @@ class AIVision:
                     1,
                 )
 
-        cv2.imshow(self.window_name, canvas)
+        cv2.imshow(self._window_name, canvas)
         cv2.waitKey(1)
 
     def close(self):
-        cv2.destroyWindow(self.window_name)
+        cv2.destroyWindow(self._window_name)

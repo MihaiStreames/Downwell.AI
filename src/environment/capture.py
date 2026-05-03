@@ -10,7 +10,7 @@ class ScreenCapture:
 
     def __init__(self):
         self._thread_local = threading.local()
-        self.monitor = None
+        self._monitor = None
         self._last_bbox = None
 
     def __del__(self):
@@ -25,15 +25,15 @@ class ScreenCapture:
 
     def set_region(self, left, top, width, height):
         """Configure capture region."""
-        self.monitor = {"top": top, "left": left, "width": width, "height": height}
+        self._monitor = {"top": top, "left": left, "width": width, "height": height}
         self._last_bbox = (left, top, width, height)
 
     def capture(self):
         """Capture and return as numpy array (H, W, C)."""
-        if self.monitor is None:
+        if self._monitor is None:
             raise RuntimeError("Must call set_region() first")
 
         sct = self._get_sct()
-        sct_img = sct.grab(self.monitor)
+        sct_img = sct.grab(self._monitor)
         img = np.array(sct_img, dtype=np.uint8)
         return img[:, :, [2, 1, 0]]  # BGR -> RGB

@@ -16,9 +16,9 @@ from src.utils.game_attributes import PLAYER_PTR
 
 class Player:
     def __init__(self, pc: pymem.Pymem, game_module: int):
-        self.pc = pc
-        self.game_module = game_module
-        self.attr = PLAYER_PTR
+        self._pc = pc
+        self._game_module = game_module
+        self._attr = PLAYER_PTR
 
     def is_gem_high(self) -> bool:
         value = self.get_value("gemHigh")
@@ -29,16 +29,17 @@ class Player:
 
     def get_ptr_addr(self, base: int, offsets: list[int]) -> int:
         try:
-            addr = int(self.pc.read_int(base))
+            addr = int(self._pc.read_int(base))
             for offset in offsets[:-1]:
-                addr = int(self.pc.read_int(addr + offset))
+                addr = int(self._pc.read_int(addr + offset))
             return addr + offsets[-1]
+
         except pymem.exception.MemoryReadError as e:
             raise e
 
     def get_type(self, attr_type: str, address: int) -> float | None:
         try:
-            return getattr(self.pc, f"read_{attr_type}")(address)
+            return getattr(self._pc, f"read_{attr_type}")(address)
         except AttributeError:
             logger.error(f"Unknown type: {attr_type}")
             return None
@@ -46,11 +47,11 @@ class Player:
             raise e
 
     def get_value(self, attribute: str) -> float | None:
-        if attribute not in self.attr:
+        if attribute not in self._attr:
             logger.error(f"Unknown attribute: {attribute}")
             return None
 
-        attr_data = cast(dict[str, Any], self.attr[attribute])
+        attr_data = cast(dict[str, Any], self._attr[attribute])
         if "bases" in attr_data:
             bases: list[int] = cast(list[int], attr_data["bases"])
             offsets_list: list[list[int]] = cast(list[list[int]], attr_data["offsets"])
@@ -60,7 +61,7 @@ class Player:
 
         for base, offsets in zip(bases, offsets_list, strict=False):
             try:
-                address = self.get_ptr_addr(self.game_module + base, offsets)
+                address = self.get_ptr_addr(self._game_module + base, offsets)
                 value = self.get_type(cast(str, attr_data["type"]), address)
                 return value
             except pymem.exception.MemoryReadError:

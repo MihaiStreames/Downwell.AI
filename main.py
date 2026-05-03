@@ -3,7 +3,6 @@ import sys
 
 if sys.platform != "win32":
     raise RuntimeError("This AI only works on Windows.")
-
 import csv
 from pathlib import Path
 import time
@@ -70,6 +69,7 @@ def main() -> None:
                     vision.display(state, q_values, last_reward)
                     max_combo = max(max_combo, state.combo)
                     final_gems = state.gems
+
                     if state.hp <= 0:
                         logger.info("Episode ended")
                         time.sleep(0.3)
@@ -91,6 +91,7 @@ def main() -> None:
                 f"Episode {episode} | reward={stats['episode_reward']:.1f}"
                 f" dur={stats['duration']:.1f}s steps={stats['steps']}"
                 f" combo={stats['max_combo']:.0f} gems={stats['final_gems']:.0f}"
+                f" ypos={stats['max_ypos_reached']:.0f}"
                 f" mem={len(agent.memory)}/{agent.memory.capacity}"
                 f" ε={stats['epsilon']:.4f} lr={stats['learning_rate']:.6f}"
             )
@@ -103,6 +104,7 @@ def main() -> None:
                     "steps": stats["steps"],
                     "max_combo": stats["max_combo"],
                     "final_gems": stats["final_gems"],
+                    "max_ypos_reached": stats["max_ypos_reached"],
                     "epsilon": stats["epsilon"],
                     "learning_rate": stats["learning_rate"],
                 }
@@ -116,10 +118,6 @@ def main() -> None:
             if episode % config.save_frequency == 0:
                 agent.save_model(f"models/downwell_ai_{episode}.pth")
                 logger.info(f"Checkpoint saved: episode {episode}")
-
-            if episode % config.target_update_frequency == 0:
-                agent.update_target_network()
-                logger.info("Target network updated")
 
     except KeyboardInterrupt:
         logger.warning("Training interrupted")

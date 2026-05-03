@@ -20,9 +20,12 @@ from src.environment.capture import ScreenCapture
 
 class CustomDownwellEnvironment:
     def __init__(self, config: Config):
-        self.game_window: gw.Win32Window | None = None
-        self.image_size: tuple[int, int] = config.image_size
-        self.stack_size: int = config.frame_stack
+        self._game_window: gw.Win32Window | None = None
+
+        self._image_size: tuple[int, int] = config.image_size
+        self._stack_size: int = config.frame_stack
+        self._frame_stack: deque[np.ndarray] = deque(maxlen=self._stack_size)
+
         self.actions: dict[int, set[str]] = {
             0: set(),
             1: {"space"},
@@ -31,32 +34,31 @@ class CustomDownwellEnvironment:
             4: {"left", "space"},
             5: {"right", "space"},
         }
-        self.frame_stack: deque[np.ndarray] = deque(maxlen=self.stack_size)
 
-        self.capture_engine: ScreenCapture = ScreenCapture()
+        self._capture_engine: ScreenCapture = ScreenCapture()
         self._capture_configured: bool = False
 
     def window_exists(self) -> bool:
         windows = gw.getWindowsWithTitle("Downwell")
         for window in windows:
             if window.title == "Downwell":
-                self.game_window = window
+                self._game_window = window
                 logger.info("Found Downwell window!")
                 return True
 
         logger.warning("Downwell window not found.")
 
-        self.game_window = None
+        self._game_window = None
         return False
 
     def get_game_window_dimensions(self) -> tuple[int, int, int, int]:
-        if self.game_window is None and not self.window_exists():
+        if self._game_window is None and not self.window_exists():
             raise Exception("Cannot find Downwell window!")
         return (
-            self.game_window.left,
-            self.game_window.top,
-            self.game_window.width,
-            self.game_window.height,
+            self._game_window.left,
+            self._game_window.top,
+            self._game_window.width,
+            self._game_window.height,
         )
 
     @staticmethod
@@ -70,10 +72,10 @@ class CustomDownwellEnvironment:
 
     def _preprocess_frame(self, frame: np.ndarray) -> np.ndarray:
         if frame is None:
-            return np.zeros(self.image_size, dtype=np.uint8)
+            return np.zeros(self._image_size, dtype=np.uint8)
 
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        resized_frame = cv2.resize(gray_frame, self.image_size, interpolation=cv2.INTER_AREA)
+        resized_frame = cv2.resize(gray_frame, self._image_size, interpolation=cv2.INTER_AREA)
         return resized_frame
 
     def get_state(self) -> np.ndarray | None:
@@ -82,20 +84,20 @@ class CustomDownwellEnvironment:
 
             # configure capture region on first call or if window moved
             if not self._capture_configured:
-                self.capture_engine.set_region(left, top, width, height)
+                self._capture_engine.set_region(left, top, width, height)
                 self._capture_configured = True
 
-            frame = self.capture_engine.capture()
+            frame = self._capture_engine.capture()
 
             cropped_frame = self.crop_game_area(frame)
             processed_frame = self._preprocess_frame(cropped_frame)
-            self.frame_stack.append(processed_frame)
+            self._frame_stack.append(processed_frame)
 
             # ensure the stack is full before returning a state
-            if len(self.frame_stack) < self.stack_size:
+            if len(self._frame_stack) < self._stack_size:
                 return None
 
-            state = np.stack(self.frame_stack, axis=2)
+            state = np.stack(self._frame_stack, axis=2)
             return state
 
         except Exception as e:
@@ -115,10 +117,10 @@ class CustomDownwellEnvironment:
             return None
 
         try:
-            self.frame_stack.clear()
+            self._frame_stack.clear()
 
-            self.game_window.restore()
-            self.game_window.activate()
+            self._game_window.restore()
+            self._game_window.activate()
             time.sleep(0.2)
 
             # game reset sequence
@@ -139,8 +141,8 @@ class CustomDownwellEnvironment:
                     time.sleep(0.2)
 
             time.sleep(1)
-            self.game_window.restore()
-            self.game_window.activate()
+            self._game_window.restore()
+            self._game_window.activate()
 
             # populate the frame stack with the initial frame to ensure it's full
             initial_screenshot = self.get_state()
@@ -157,10 +159,10 @@ class CustomDownwellEnvironment:
             else:
                 processed_frame = initial_screenshot[:, :, -1]  # get last frame
 
-            for _ in range(self.stack_size):
-                self.frame_stack.append(processed_frame)
+            for _ in range(self._stack_size):
+                self._frame_stack.append(processed_frame)
 
-            return np.stack(self.frame_stack, axis=2)
+            return np.stack(self._frame_stack, axis=2)
 
         except Exception as e:
             logger.error(f"Error resetting game: {e}")

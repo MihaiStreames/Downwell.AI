@@ -11,60 +11,60 @@ from src.threaders.thinker import ThinkerThread
 
 class DownwellAI:
     def __init__(self, player, env, agent, reward_calculator, config: Config):
-        self.player = player
-        self.env = env
-        self.agent = agent
-        self.reward_calc = reward_calculator
-        self.config = config
+        self._player = player
+        self._env = env
+        self._agent = agent
+        self._reward_calc = reward_calculator
+        self._config = config
 
         # recreated each episode
-        self.perceptor: PerceptorThread | None = None
+        self._perceptor: PerceptorThread | None = None
         self.thinker: ThinkerThread | None = None
-        self.actor: ActorThread | None = None
-        self.state_buffer: deque | None = None
-        self.action_queue: queue.Queue | None = None
+        self._actor: ActorThread | None = None
+        self._state_buffer: deque | None = None
+        self._action_queue: queue.Queue | None = None
 
     def start(self) -> None:
-        self.state_buffer = deque(maxlen=120)
-        self.action_queue = queue.Queue()
+        self._state_buffer = deque(maxlen=120)
+        self._action_queue = queue.Queue()
 
-        self.perceptor = PerceptorThread(
-            self.player,
-            self.env,
-            self.state_buffer,
-            perception_fps=self.config.perceptor_fps,
+        self._perceptor = PerceptorThread(
+            self._player,
+            self._env,
+            self._state_buffer,
+            perception_fps=self._config.perceptor_fps,
         )
         self.thinker = ThinkerThread(
-            self.agent,
-            self.reward_calc,
-            self.state_buffer,
-            self.action_queue,
-            self.perceptor.lock,
-            decision_fps=self.config.thinker_fps,
+            self._agent,
+            self._reward_calc,
+            self._state_buffer,
+            self._action_queue,
+            self._perceptor.lock,
+            decision_fps=self._config.thinker_fps,
         )
-        self.actor = ActorThread(self.env, self.action_queue)
+        self._actor = ActorThread(self._env, self._action_queue)
 
-        self.perceptor.start()
+        self._perceptor.start()
         self.thinker.start()
-        self.actor.start()
-        self.reward_calc.reset_episode()
+        self._actor.start()
+        self._reward_calc.reset_episode()
 
     def stop(self) -> None:
-        if self.perceptor:
-            self.perceptor.stop()
+        if self._perceptor:
+            self._perceptor.stop()
 
         if self.thinker:
             self.thinker.stop()
 
-        if self.actor:
-            self.actor.stop()
+        if self._actor:
+            self._actor.stop()
 
         time.sleep(0.2)
 
     def get_latest_state(self) -> GameState | None:
-        if self.perceptor and self.state_buffer:
-            with self.perceptor.lock:
-                return self.state_buffer[-1] if self.state_buffer else None
+        if self._perceptor and self._state_buffer:
+            with self._perceptor.lock:
+                return self._state_buffer[-1] if self._state_buffer else None
         return None
 
     def get_episode_stats(self) -> dict:
