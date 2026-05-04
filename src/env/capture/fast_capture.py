@@ -1,0 +1,2 @@
+class FastgrabCapture:
+    pass

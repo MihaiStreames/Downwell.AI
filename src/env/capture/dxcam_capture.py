@@ -1,0 +1,2 @@
+class DXCamCapture:
+    pass

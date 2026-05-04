@@ -1,0 +1,2 @@
+class DirectInput:
+    pass
