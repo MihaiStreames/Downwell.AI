@@ -23,3 +23,11 @@ repos:
         types: [python]
         args: [src/]
         pass_filenames: false
+
+      - id: tests
+        name: pytests
+        entry: uv run pytest
+        language: system
+        types: [python]
+        args: [tests/]
+        pass_filenames: false

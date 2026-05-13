@@ -2,9 +2,10 @@
 __pycache__/
 .venv/
 .ruff_cache/
+.hypothesis/
+.pytest_cache/
 
 # LLMs
-.agents/
 .claude/
 CLAUDE.md
 

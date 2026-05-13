@@ -1,5 +1,5 @@
-line-length = 100
-target-version = "py311"
+line-length = 160
+target-version = "py313"
 
 [lint]
 select = [
@@ -20,7 +20,6 @@ select = [
 ]
 
 ignore = [
-  "E501",
   "PLR0913",
   "PLR2004",
   "RET504",
@@ -58,7 +57,7 @@ section-order = [
 ]
 
 [lint.pydocstyle]
-convention = "google"
+convention = "numpy"
 
 [lint.pylint]
 max-args = 7
