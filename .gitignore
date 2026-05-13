@@ -3,10 +3,11 @@ __pycache__/
 .venv/
 .ruff_cache/
 
-# Data files
-*.pth
-
 # LLMs
 .agents/
 .claude/
 CLAUDE.md
+
+# Local
+old/
+insp/
