@@ -1,0 +1,8 @@
+include = ["pyproject.toml"]
+
+[[rule]]
+include = ["pyproject.toml"]
+keys = ["dependencies", "*-dependencies"]
+
+[rule.formatting]
+reorder_keys = true

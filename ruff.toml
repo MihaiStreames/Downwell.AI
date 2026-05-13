@@ -1,38 +1,13 @@
-line-length = 160
+src = ["src", "scripts", "tests"]
 target-version = "py313"
+line-length = 160
 
 [lint]
-select = [
-  "E",
-  "W",
-  "F",
-  "I",
-  "N",
-  "UP",
-  "B",
-  "C4",
-  "SIM",
-  "ARG",
-  "PTH",
-  "RET",
-  "PL",
-  "PERF",
-]
-
+select = ["ALL"]
 ignore = [
-  "PLR0913",
-  "PLR2004",
-  "RET504",
-  "SIM108",
-  "B008",
-  "PLW0603",
-  "PLC0415",
-  "ARG001",
-  "PLR0911",
-  "PLR0912",
-  "PLR0915",
+  "COM812",  # missing trailing comma
+  "ISC001",  # single line implicit string concat
 ]
-
 fixable = ["ALL"]
 unfixable = []
 
@@ -40,9 +15,9 @@ unfixable = []
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
-line-ending = "auto"
+line-ending = "lf"
 docstring-code-format = true
-docstring-code-line-length = 80
+docstring-code-line-length = 160
 
 [lint.isort]
 force-single-line = true

@@ -1,48 +1,46 @@
 [project]
 name = "downwell-ai"
-version = "1.0.2"
-description = "DQN agent for the game Downwell"
+version = "0.1.0rc"
+requires-python = ">=3.13,<3.14"
+description = "DQN agent for Downwell."
 readme = "README.md"
-requires-python = ">=3.11,<3.14"
 dependencies = [
-    "numpy>=2.4.4,<3.0",
-    "opencv-python>=4.13.0.92",
-    "pillow>=12.2.0",
-    "matplotlib>=3.10.9",
-    "mss>=10.2.0",
-    "loguru>=0.7.3",
-    "types-pyautogui>=0.9.3.20260408",
-    # for my older GTX 1080
-    "torch==2.7.1",
-    "torchvision==0.22.1",
-    "torchaudio==2.7.1",
+  "dxcam>=0.3.0; sys_platform == 'win32'",
+  "gymnasium>=1.3.0",
+  "loguru>=0.7.3",
+  "msgspec>=0.21.1",
+  "numpy>=2.4.4",
+  "opencv-python>=4.13.0.92",
+  "pydirectinput-rgx>=2.1.3; sys_platform == 'win32'",
+  "pymemoryeditor>=1.6.0",
+  "pynput>=1.8.2; sys_platform == 'linux'",
+  "python-xlib>=0.33; sys_platform == 'linux'",
+  "rtgym>=0.16",
+  "tensorboard>=2.20.0",
+  "torch==2.7.1",
+  "torchvision==0.22.1",
 ]
 
-[project.optional-dependencies]
-windows = [
-    "pyautogui>=0.9.54",
-    "pygetwindow>=0.0.9",
-    "pymem>=1.14.0",
-    "keyboard>=0.13.5",
-    "pywin32>=311.0",
-]
+[dependency-groups]
 dev = [
+  "hypothesis>=6.152.7",
+  "pytest>=9.0.3",
   "ruff>=0.15.12",
   "ssort>=0.16.0",
-  "ty>=0.0.34",
+  "ty>=0.0.35",
 ]
 
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu126" }]
+torchvision = [{ index = "pytorch-cu126" }]
+
 [[tool.uv.index]]
-# for my older GTX 1080
 name = "pytorch-cu126"
 url = "https://download.pytorch.org/whl/cu126"
 explicit = true
 
-[tool.uv.sources]
-# for my older GTX 1080
-torch = { index = "pytorch-cu126" }
-torchvision = { index = "pytorch-cu126" }
-torchaudio = { index = "pytorch-cu126" }
-
-[tool.ty.environment]
-python-version = "3.14"
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = ["smoke: requires game running; skipped by default"]
+addopts = ["-m", "not smoke", "--strict-markers"]
