@@ -19,12 +19,17 @@ repos:
 
   - repo: local
     hooks:
+      - id: taplo
+        name: taplo fmt
+        entry: uvx taplo fmt
+        language: system
+        types: [toml]
+
       - id: sorting
         name: ssort
         entry: uvx ssort
         language: system
         types: [python]
-        pass_filenames: false
 
       - id: typing
         name: ty

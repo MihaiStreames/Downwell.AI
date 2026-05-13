@@ -1,7 +1,0 @@
-[environment]
-root = ["./src", "./scripts", "."]
-python-version = "3.13"
-
-[rules]
-possibly-unresolved-reference = "warn"
-unresolved-import = "warn"

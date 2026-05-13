@@ -5,20 +5,16 @@ requires-python = ">=3.13,<3.14"
 description = "DQN agent for Downwell."
 readme = "README.md"
 dependencies = [
-  "dxcam>=0.3.0; sys_platform == 'win32'",
   "gymnasium>=1.3.0",
   "loguru>=0.7.3",
   "msgspec>=0.21.1",
   "numpy>=2.4.4",
   "opencv-python>=4.13.0.92",
-  "pydirectinput-rgx>=2.1.3; sys_platform == 'win32'",
   "pymemoryeditor>=1.6.0",
-  "pynput>=1.8.2; sys_platform == 'linux'",
-  "python-xlib>=0.33; sys_platform == 'linux'",
   "rtgym>=0.16",
   "tensorboard>=2.20.0",
-  "torch==2.7.1",
-  "torchvision==0.22.1",
+  "torch==2.9.1",
+  "torchvision==0.24.1",
 ]
 
 [dependency-groups]
@@ -28,19 +24,84 @@ dev = [
   "ruff>=0.15.12",
   "ssort>=0.16.0",
   "ty>=0.0.35",
+  "taplo>=0.9.3",
 ]
-
-[tool.uv.sources]
-torch = [{ index = "pytorch-cu126" }]
-torchvision = [{ index = "pytorch-cu126" }]
+linux = ["pynput>=1.8.2", "python-xlib>=0.33"]
+windows = ["dxcam>=0.3.0", "pydirectinput-rgx>=2.1.3"]
 
 [[tool.uv.index]]
 name = "pytorch-cu126"
 url = "https://download.pytorch.org/whl/cu126"
 explicit = true
 
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cu126", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+torchvision = [
+  { index = "pytorch-cu126", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+
+[tool.ruff]
+src = ["src", "scripts", "tests"]
+target-version = "py313"
+line-length = 160
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = ["COM812", "ISC001"]
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "lf"
+docstring-code-format = true
+docstring-code-line-length = 160
+
+[tool.ruff.lint.isort]
+force-single-line = true
+force-sort-within-sections = true
+lines-after-imports = 2
+section-order = [
+  "future",
+  "standard-library",
+  "third-party",
+  "first-party",
+  "local-folder",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.pylint]
+max-args = 7
+max-branches = 20
+max-returns = 6
+max-statements = 60
+
+[tool.ty.environment]
+root = ["./src", "./scripts", "."]
+python-version = "3.13"
+
+[tool.ty.rules]
+possibly-unresolved-reference = "warn"
+unresolved-import = "warn"
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
 markers = ["smoke: requires game running; skipped by default"]
 addopts = ["-m", "not smoke", "--strict-markers"]
+
+[tool.taplo]
+include = ["pyproject.toml"]
+
+[[tool.taplo.rule]]
+include = ["pyproject.toml"]
+keys = ["dependencies", "*-dependencies"]
+
+[tool.taplo.rule.formatting]
+reorder_keys = true
