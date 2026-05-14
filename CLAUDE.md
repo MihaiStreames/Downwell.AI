@@ -50,6 +50,7 @@ Always use `uv run` to execute Python code and tools. Never call `python`, `pyte
 - Lint and auto-fix: `uv run ruff check --fix .`
 - Format: `uv run ruff format .`
 - Check formatting: `uv run ruff format --check .`
+- Sort modules: `uv run ssort src/ scripts/ tests/`
 - Line length: 160 characters
 - All `ruff` configuration lives in `pyproject.toml` under `[tool.ruff]`
 
