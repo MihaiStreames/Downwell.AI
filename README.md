@@ -2,7 +2,7 @@
   <img src="assets/logo.png" alt="Downwell.AI" width="full"/>
 </p>
 
-[![Version](https://img.shields.io/badge/version-0.1.1rc-blue)](https://github.com/MihaiStreames/Downwell.AI/releases)
+[![Version](https://img.shields.io/badge/version-0.1.0rc-blue)](https://github.com/MihaiStreames/Downwell.AI/releases)
 [![Platform](https://img.shields.io/badge/platform-linux%20%7C%20windows-lightgrey)](https://github.com/MihaiStreames/Downwell.AI)
 [![Python](https://img.shields.io/badge/python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/github/license/MihaiStreames/Downwell.AI?label=license)](LICENSE)

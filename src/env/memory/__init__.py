@@ -1,3 +1,11 @@
+from .game_memory import attach
+
+
+__all__ = [
+    "attach"
+]
+
+
 # Copyright 2023 MihaiStreames
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
