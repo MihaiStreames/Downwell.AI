@@ -5,7 +5,7 @@ usage() {
   echo "Usage: $(basename "$0") [-a|--all] [-h|--help]"
   echo ""
   echo "Options:"
-  echo "  -a, --all   also remove .venv, dist, *.egg-info"
+  echo "  -a, --all   remove venvs and builds"
   echo "  -h, --help  show this message"
 }
 

@@ -2,10 +2,11 @@
   <img src="assets/logo.png" alt="Downwell.AI" width="full"/>
 </p>
 
-[![Version](https://img.shields.io/badge/version-0.1.0rc-blue)](https://github.com/MihaiStreames/Downwell.AI/releases)
-[![Platform](https://img.shields.io/badge/platform-linux%20%7C%20windows-lightgrey)](https://github.com/MihaiStreames/Downwell.AI)
 [![Python](https://img.shields.io/badge/python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![License](https://img.shields.io/github/license/MihaiStreames/Downwell.AI?label=license)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.1.0rc-blue)](https://github.com/MihaiStreames/Downwell.AI/releases)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-purple)](https://github.com/MihaiStreames/Downwell.AI)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-yellowgreen.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License: MIT](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 
 ## License
 
