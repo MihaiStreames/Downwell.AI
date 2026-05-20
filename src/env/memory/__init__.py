@@ -1,9 +1,7 @@
 from .game_memory import attach
 
 
-__all__ = [
-    "attach"
-]
+__all__ = ["attach"]
 
 
 # Copyright 2023 MihaiStreames

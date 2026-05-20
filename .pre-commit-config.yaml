@@ -1,42 +1,53 @@
+fail_fast: true
+
 repos:
   - repo: builtin
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+      - id: check-toml
+      - id: mixed-line-ending
+        args: [--fix=lf]
+        priority: 0
+
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.25
+    hooks:
+      - id: validate-pyproject
+        priority: 0
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.13
+    hooks:
+      - id: ruff-check
+        priority: 0
+        args: [--fix, --unsafe-fixes]
+      - id: ruff-format
+        priority: 1
+
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.8.3
+    hooks:
+      - id: prettier
+        types_or: [json, markdown, yaml]
+        priority: 1
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: check-added-large-files
-
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.12
-    hooks:
-      - id: ruff-check
-        args: [--fix, --unsafe-fixes]
-      - id: ruff-format
+        priority: 1
 
   - repo: local
     hooks:
-      - id: taplo
-        name: taplo fmt
-        entry: uvx taplo fmt
-        language: system
-        types: [toml]
-
-      - id: sorting
-        name: ssort
-        entry: uvx ssort
-        language: system
-        types: [python]
-
       - id: typing
         name: ty
         entry: uvx ty check
         language: system
         types: [python]
         pass_filenames: false
+        priority: 0
 
       - id: tests
         name: pytest
@@ -44,3 +55,18 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+        priority: 0
+
+      - id: taplo
+        name: taplo fmt
+        entry: uvx taplo fmt
+        language: system
+        types: [toml]
+        priority: 1
+
+      - id: sorting
+        name: ssort
+        entry: uvx ssort
+        language: system
+        types: [python]
+        priority: 1

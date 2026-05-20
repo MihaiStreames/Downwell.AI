@@ -118,6 +118,9 @@ class AttachedMemory:
 
 
 def _resolve_module_base_win(pid: int, proc_name: str) -> int | None:
+    if sys.platform != "win32":
+        return None
+
     handle = ctypes.windll.kernel32.OpenProcess(PROC_QUERY_INFO | PROC_VM_READ, WIN_FALSE, pid)
     if not handle:
         return None
