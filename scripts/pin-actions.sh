@@ -25,15 +25,15 @@ if [[ "$CHECK" == true ]]; then
   pinact run --check
 
   echo "Auditing workflows with zizmor..."
-  zizmor .github/workflows/
+  zizmor .github/workflows/ --pedantic
 
   echo "All checks passed"
 else
   echo "Pinning actions to latest SHAs..."
   pinact run
 
-  echo "Auditing workflows with zizmor..."
-  zizmor .github/workflows/
+  echo "Fixing workflows with zizmor..."
+  zizmor .github/workflows/ --fix=all --pedantic
 
   echo "Done"
 fi
