@@ -1,0 +1,8 @@
+.venv/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+.claude/
+insp/
+old/
+uv.lock
