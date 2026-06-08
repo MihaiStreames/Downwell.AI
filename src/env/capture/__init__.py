@@ -16,7 +16,11 @@
 import sys
 
 
+if sys.platform == "linux":
+    from .x11_capture import X11Capture as Capture
+
 if sys.platform == "win32":
     from .dxcam_capture import DXCamCapture as Capture
-else:
-    from .x11_capture import X11Capture as Capture  # noqa: F401
+
+
+__all__ = ["Capture"]

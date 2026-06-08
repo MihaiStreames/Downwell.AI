@@ -13,13 +13,7 @@
 # limitations under the License.
 
 
-class DownwellError(Exception):
-    """Base error for all Downwell project errors."""
+from .input_handler import InputHandler
 
 
-class FieldResolveError(DownwellError):
-    """All pointer chains for a named game field failed."""
-
-    def __init__(self, field: str) -> None:
-        self.field = field
-        super().__init__(f"could not resolve field {field!r}: all pointer chains failed")
+__all__ = ["InputHandler"]

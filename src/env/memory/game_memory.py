@@ -1,4 +1,4 @@
-# Copyright 2023 MihaiStreames, UnderNowhere
+# Copyright 2023 MihaiStreames
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,17 +13,6 @@
 # limitations under the License.
 
 
-import sys
-
-
-if sys.platform == "win32":
-    import ctypes
-    import ctypes.wintypes as wt
-
-    PROCESS_QUERY_INFORMATION = 0x0400
-    PROCESS_VM_READ = 0x0010
-    WIN_FALSE = wt.BOOL(0)
-
 from dataclasses import dataclass
 import struct
 from typing import cast
@@ -35,6 +24,7 @@ from PyMemoryEditor.process.errors import ProcessNotFoundError
 from src.consts import PROCESS_NAME
 from src.utils.exceptions import FieldResolveError
 
+from ._module_base import resolve_module_base
 from .game_ptrs import PLAYER_PTR
 
 
@@ -56,30 +46,35 @@ class AttachedMemory:
     """
     Active validated connection to a running process.
 
-    Invariant: both ``_proc`` and ``_module_base`` are guaranteed valid for the lifetime of this object.
+    Invariant: both ``_process`` and ``_module_base`` are guaranteed valid for the lifetime of this object.
     Do not use standalone; use ``attach()``.
     """
 
-    _proc: AbstractProcess
+    _process: AbstractProcess
     _module_base: int
 
-    def _read_ptr(self, addr: int) -> int:
+    def _read_ptr(self, addr: int) -> int | None:
         # PyMemoryEditor does not raise on bad reads, returns garbage on failure
-        data: bytes = self._proc.read_process_memory(addr, bytes, 4)
-        logger.trace(f"reading ptr {struct.unpack_from('<I', data)[0]:#x}")
-        return struct.unpack_from("<I", data)[0]
+        data: bytes = self._process.read_process_memory(addr, bytes, 4)
+        result = struct.unpack_from("<I", data)[0]
+        logger.trace(f"reading ptr {result:#x}")
+        return result if result != 0 else None
 
     def _read_typed(self, addr: int, type_str: str) -> float:
         size = 4 if type_str == "float" else 8
-        value: float = self._proc.read_process_memory(addr, float, size)
+        value: float = self._process.read_process_memory(addr, float, size)
         logger.trace(f"reading typed {value} ({size}b)")
         return value
 
-    def _get_ptr_addr(self, base: int, offsets: list[int]) -> int:
+    def _get_ptr_addr(self, base: int, offsets: list[int]) -> int | None:
         addr = self._read_ptr(base)
+        if addr is None:
+            return None
 
         for offset in offsets[:-1]:
             addr = self._read_ptr(addr + offset)
+            if addr is None:
+                return None
 
         return addr + offsets[-1]
 
@@ -96,6 +91,9 @@ class AttachedMemory:
 
         for base, offsets in zip(bases, offsets_list, strict=False):
             addr = self._get_ptr_addr(module_base + base, offsets)
+            if addr is None:
+                continue
+
             return self._read_typed(addr, type_str)
 
         raise FieldResolveError(field)
@@ -115,50 +113,13 @@ class AttachedMemory:
 
     def close(self) -> None:
         """Terminate session. This object must not be used after calling this."""
-        logger.debug(f"closed {self._proc._process_info.process_name}")  # noqa: SLF001 (readability)
-        self._proc.close()
-
-
-if sys.platform == "linux":
-
-    def _resolve_module_base(proc: AbstractProcess, proc_name: str) -> int | None:
-        for region in proc.get_memory_regions():
-            path: bytes = region["struct"].Path or b""
-            if proc_name.encode() in path:
-                return region["address"]
-
-        return None
-
-
-if sys.platform == "win32":
-
-    def _resolve_module_base(proc: AbstractProcess, proc_name: str) -> int | None:
-        handle = ctypes.windll.kernel32.OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, WIN_FALSE, proc.pid)
-        if not handle:
-            return None
-
-        try:
-            name_buf = ctypes.create_unicode_buffer(512)
-
-            modules = (wt.HMODULE * 1024)()
-            needed = wt.DWORD()
-
-            ctypes.windll.psapi.EnumProcessModules(handle, modules, ctypes.sizeof(modules), ctypes.byref(needed))
-            count = needed.value // ctypes.sizeof(wt.HMODULE)
-
-            for mod in modules[:count]:
-                ctypes.windll.psapi.GetModuleBaseNameW(handle, mod, name_buf, 260)
-                if proc_name.lower() == name_buf.value.lower():
-                    return mod
-        finally:
-            ctypes.windll.kernel32.CloseHandle(handle)
-
-        return None
+        logger.debug(f"closed {self._process._process_info.process_name}")  # noqa: SLF001 (readability)
+        self._process.close()
 
 
 def attach(proc_name: str = PROCESS_NAME) -> AttachedMemory | None:
     """
-    Attempt to find and attach to a process.
+    Attempt to find and attach to a process. Works on both Windows (via ``OpenProcess``) and Linux (via ``/proc/``).
 
     Returns an ``AttachedMemory`` if successful, ``None`` if process isn't running or module base can't be resolved.
     """
@@ -167,9 +128,9 @@ def attach(proc_name: str = PROCESS_NAME) -> AttachedMemory | None:
     except ProcessNotFoundError:
         return None
 
-    base = _resolve_module_base(proc, proc_name)
+    base = resolve_module_base(proc, proc_name)
     if base is None:
-        logger.warning(f"attached to {proc_name} but module base not found in memory")
+        logger.error(f"attached to {proc_name} but module base not found in memory")
         proc.close()
         return None
 

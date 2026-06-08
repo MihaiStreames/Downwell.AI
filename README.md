@@ -7,6 +7,8 @@
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-yellowgreen.svg)](https://opensource.org/licenses/Apache-2.0)
 [![License: MIT](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 
+DQN agent for [Downwell](https://store.steampowered.com/app/360740/Downwell/).
+
 ## License
 
 > [!NOTE]

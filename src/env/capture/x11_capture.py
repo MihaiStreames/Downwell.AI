@@ -30,13 +30,12 @@ from Xlib.display import Display
 from ._base import BaseCapture
 
 
-def _find_window(display: Display, title: str) -> tuple[Any, int, int] | None:
+def _find_window(display: Display, atom: int, title: str) -> tuple[Any, int, int] | None:
     root = display.screen().root
-    atom = display.intern_atom("_NET_CLIENT_LIST")  # to avoid SIGSEGVs
 
-    prop = root.get_full_property(atom, X.AnyPropertyType)
+    prop = root.get_full_property(atom, X.AnyPropertyType)  # to avoid SIGSEGVs
     if prop is None:
-        logger.error(f"failed to get window list ({atom}, {root})")
+        logger.warning(f"failed to get window list ({atom}, {root})")
         return None
 
     for wid in prop.value:
@@ -49,8 +48,8 @@ def _find_window(display: Display, title: str) -> tuple[Any, int, int] | None:
 
             geom = win.get_geometry()
 
-        except xlib_error.XError:
-            logger.opt(exception=True).warning("failed to get window name, will skip")
+        except (xlib_error.BadWindow, xlib_error.BadDrawable):
+            logger.opt(exception=True).debug("failed to get window name, will skip")
             continue
 
         else:
@@ -63,28 +62,33 @@ class X11Capture(BaseCapture):
     """Capture and preprocess frames on Linux via ``X11``."""
 
     def __init__(self, title: str = WINDOW_TITLE) -> None:
-        self._title: str = title
-        self._display = Display()
-        self._window: Any | None = None
-        self._width: int | None = None
-        self._height: int | None = None
+        self.__title: str = title
+        self.__display = Display()
+        self.__atom = self.__display.intern_atom("_NET_CLIENT_LIST")
+
+        self.__window: Any | None = None
+        self.__width: int = 0
+        self.__height: int = 0
 
     def grab(self) -> np.ndarray | None:
         """Grab an image (grayscale), or None if window not found."""
-        self._window, self._width, self._height = _find_window(self._display, self._title)
-        if self._window is None:
-            return None
+        if self.__window is None:
+            result = _find_window(self.__display, self.__atom, self.__title)
+            if result is None:
+                return None
+
+            self.__window, self.__width, self.__height = result
 
         try:
-            raw = self._window.get_image(0, 0, self._width, self._height, X.ZPixmap, 0xFFFFFFFF)
-        except xlib_error.XError:
-            self._window = None
+            raw = self.__window.get_image(0, 0, self.__width, self.__height, X.ZPixmap, 0xFFFFFFFF)
+        except (xlib_error.BadDrawable, xlib_error.BadMatch):
+            self.__window = None
             logger.opt(exception=True).warning("XGetImage failed, will re-locate next grab")
             return None
 
-        frame = np.frombuffer(raw.data, dtype=np.uint8).reshape((self._height, self._width, 4))
-        left = int(self._width * CROP_LEFT_RATIO)
-        right = int(self._width * CROP_RIGHT_RATIO)
+        frame = np.frombuffer(raw.data, dtype=np.uint8).reshape((self.__height, self.__width, 4))
+        left = int(self.__width * CROP_LEFT_RATIO)
+        right = int(self.__width * CROP_RIGHT_RATIO)
         gray = cv2.cvtColor(frame[:, left:right], cv2.COLOR_BGRA2GRAY)
 
         return cv2.resize(gray, (IMAGE_WIDTH, IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)

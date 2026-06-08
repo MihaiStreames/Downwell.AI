@@ -96,6 +96,40 @@ Three separate jobs in `.github/workflows/ci.yml`:
 
 All GitHub Actions are SHA-pinned with trailing tag comments. Use `scripts/pin-actions.sh` to update them.
 
+## Cross-platform
+
+win32 and linux only. No macOS.
+
+- Always `if sys.platform == "win32"` / `if sys.platform == "linux"` -- never `else`
+- Platform-specific imports at module level inside their guard
+- Platform-specific dependencies go in `[dependency-groups]` (`linux`, `windows`), not inline `sys_platform` markers
+
+## Exception hierarchy
+
+```console
+DownwellError (base)
+└── FieldResolveError  -- all pointer chains for a game field failed
+```
+
+- `None` return for transient failures: game not running, window not found, frame grab failed
+- `FieldResolveError` for invariant violations in the hot path -- callers must handle, training stops
+- Third-party exceptions (`xlib_error`, `ProcessNotFoundError`, etc.) never escape their module -- catch at the boundary
+
+## Logging levels
+
+- `trace` - hot-path per-frame noise (pointer reads, memory reads)
+- `debug` - lifecycle events (attach, close, init)
+- `warning` - recoverable failures that self-resolve (window lost, frame grab failed, will retry next frame)
+- `error` - unexpected failures that degrade behavior but don't stop execution
+- `success` - meaningful milestones (first successful process attach)
+- Never log the same failure at two layers -- log once at the site of the exception
+
+## Training loop contract
+
+- `grab() -> None`  window not found or frame grab failed; skip frame, retry next tick
+- `attach() -> None` - process not running; retry
+- `FieldResolveError` raised from `read()` - memory unreadable; catch at loop level, clean shutdown
+
 ## What NOT to do
 
 - Do not create or activate virtual environments manually. `uv` manages `.venv/` automatically.

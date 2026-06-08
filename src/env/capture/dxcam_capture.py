@@ -30,6 +30,9 @@ from src.consts import WINDOW_TITLE
 from ._base import BaseCapture
 
 
+_user32 = ctypes.windll.user32
+
+
 class _Rect(ctypes.Structure):
     _fields_ = [("left", wt.LONG), ("top", wt.LONG), ("right", wt.LONG), ("bottom", wt.LONG)]
 
@@ -55,14 +58,14 @@ class _CapturedRegion:
 
 
 def _find_window_rect(title: str) -> _WindowRect | None:
-    handle = ctypes.windll.user32.FindWindowW(None, title)
+    handle = _user32.FindWindowW(None, title)
     if not handle:
-        logger.error("failed to get handle")
+        logger.warning("failed to get handle")
         return None
 
     rect = _Rect()
-    if not ctypes.windll.user32.GetWindowRect(handle, ctypes.byref(rect)):
-        logger.error(f"failed to get window rect ({handle})")
+    if not _user32.GetWindowRect(handle, ctypes.byref(rect)):
+        logger.warning(f"failed to get window rect ({handle})")
         return None
 
     return _WindowRect(rect.left, rect.top, rect.right, rect.bottom)
@@ -72,17 +75,17 @@ class DXCamCapture(BaseCapture):
     """Capture and preprocess frames on Windows via ``dxcam``."""
 
     def __init__(self, title: str = WINDOW_TITLE) -> None:
-        self._title = title
-        self._camera = dxcam.create()  # if needed precise the buffer size (default is 8)
+        self.__title = title
+        self.__camera = dxcam.create()  # if needed precise the buffer size (default is 8)
 
     def _as_region(self) -> _CapturedRegion | None:
-        rect = _find_window_rect(self._title)
+        rect = _find_window_rect(self.__title)
         if rect is None:
             return None
 
-        frame = self._camera.grab(region=rect.as_tuple())
+        frame = self.__camera.grab(region=rect.as_tuple())
         if frame is None:
-            logger.error(f"failed to grab frame ({rect.as_tuple()})")
+            logger.warning(f"failed to grab frame ({rect.as_tuple()})")
             return None
 
         return _CapturedRegion(rect, frame)
@@ -91,7 +94,6 @@ class DXCamCapture(BaseCapture):
         """Grab an image (grayscale), or None if window not found."""
         region = self._as_region()
         if region is None:
-            logger.error(f"failed to grab region ({self._title})")
             return None
 
         width = region.rect[2] - region.rect[0]

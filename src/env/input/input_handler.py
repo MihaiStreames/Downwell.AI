@@ -16,12 +16,22 @@
 import sys
 import time
 
-import pydirectinput
 from src.consts import ACTION_KEYS
 
 
 if sys.platform == "linux":
     from pynput.keyboard import Controller
+    from pynput.keyboard import Key
+
+    _KEY_MAP: dict[str, Key] = {
+        "space": Key.space,
+        "left": Key.left,
+        "right": Key.right,
+        "esc": Key.esc,
+    }
+
+if sys.platform == "win32":
+    import pydirectinput
 
 
 class InputHandler:
@@ -33,52 +43,51 @@ class InputHandler:
     """
 
     def __init__(self) -> None:
-        self._held: set[str] = set()
+        self.__held: set[str] = set()
 
         if sys.platform == "linux":
             kb = Controller()
 
-            def _tap_linux(key: str) -> None:
-                kb.press(key)
-                kb.release(key)
+            def _tap(key: str) -> None:
+                _press(key)
+                _release(key)
 
-            self._tap = _tap_linux
-            self._press = kb.press
-            self._release = kb.release
+            def _press(key: str) -> None:
+                kb.press(_KEY_MAP[key])
+
+            def _release(key: str) -> None:
+                kb.release(_KEY_MAP[key])
+
+            self.__tap = _tap
+            self.__press = _press
+            self.__release = _release
 
         if sys.platform == "win32":
-            self._tap = pydirectinput.press
-            self._press = pydirectinput.keyDown
-            self._release = pydirectinput.keyUp
+            self.__tap = pydirectinput.press
+            self.__press = pydirectinput.keyDown
+            self.__release = pydirectinput.keyUp
 
     def apply(self, action: int) -> None:
         """Apply the given ``ACTION_KEYS`` int."""
         target = ACTION_KEYS[action]
 
-        for key in self._held - target:
-            self._release(key)
-        for key in target - self._held:
-            self._press(key)
+        for key in self.__held - target:
+            self.__release(key)
+        for key in target - self.__held:
+            self.__press(key)
 
-        self._held = target
+        self.__held = target
 
     def release_all(self) -> None:
         """Release all held keys."""
-        for key in self._held:
-            self._release(key)
-        self._held.clear()
+        for key in self.__held:
+            self.__release(key)
+        self.__held.clear()
 
-    def play_sequence(self, keys: list[str]) -> None:
-        """
-        Play a sequence of keys in order.
-
-        Note:
-        -----
-            This method releases all held keys before playing the sequence.
-            (unsure if it is necessary)
-        """
-        self.release_all()  # unsure if this is necessary
+    def play_sequence(self, keys: list[str], delay: float = 0.5) -> None:
+        """Play a sequence of keys in order, releasing all held keys first."""
+        self.release_all()
 
         for key in keys:
-            self._tap(key)
-            time.sleep(0.5)
+            self.__tap(key)
+            time.sleep(delay)

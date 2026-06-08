@@ -60,14 +60,13 @@ docstring-code-line-length = 160
 [tool.ruff.lint]
 select = [ "ALL" ]
 ignore = [
-  "INP001", # implicit-namespace-package (no module docstrings for now)
-  "D100",   # undocumented-public-module (same here)
-  "D104",   # undocumented-public-package (same here)
-  "ERA001", # commented-out-code
-  "TD003",  # missing-todo-link (TODOs aren't tied to issues (yet))
-  "FIX002", # line-contains-todo
   "COM812", # missing-trailing-comma (formatter conflict)
+  "D100",   # undocumented-public-module (no module docstrings for now)
+  "D104",   # undocumented-public-package (no module docstrings for now)
+  "FIX002", # line-contains-todo
+  "INP001", # implicit-namespace-package (no module docstrings for now)
   "RUF012", # mutable-default-value (what is this?)
+  "TD003",  # missing-todo-link (TODOs aren't tied to issues (yet))
 ]
 fixable = [ "ALL" ]
 unfixable = []
@@ -84,9 +83,12 @@ section-order = [
 ]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = [
+  "ANN201", # missing-return-type-undocumented-public-function
   "D100",   # undocumented-public-module (no need for these in tests)
   "D103",   # undocumented-public-function (same)
   "INP001", # implicit-namespace-package (if tests become a package, remove)
+  "S101",   # assert (idiomatic in pytest)
+  "T201",   # print (fine in test output)
 ]
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
