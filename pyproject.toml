@@ -63,9 +63,11 @@ ignore = [
   "INP001", # implicit-namespace-package (no module docstrings for now)
   "D100",   # undocumented-public-module (same here)
   "D104",   # undocumented-public-package (same here)
+  "ERA001", # commented-out-code
   "TD003",  # missing-todo-link (TODOs aren't tied to issues (yet))
-  "FIX002", # line-contains-todo (i wanna sleep)
+  "FIX002", # line-contains-todo
   "COM812", # missing-trailing-comma (formatter conflict)
+  "RUF012", # mutable-default-value (what is this?)
 ]
 fixable = [ "ALL" ]
 unfixable = []

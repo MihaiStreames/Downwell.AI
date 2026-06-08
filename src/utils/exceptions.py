@@ -17,14 +17,14 @@ class DownwellError(Exception):
     """Base error for all Downwell project errors."""
 
 
-class MemoryReadError(DownwellError):
-    """OS-level memory read failed."""
-
-    def __init__(self, addr: int, os_error: int | None = None) -> None:
-        self.addr = addr
-        self.os_error = os_error
-        detail = f"(os error {os_error})" if os_error is not None else ""
-        super().__init__(f"memory read failed at 0x{addr:x} {detail}")
+# class MemoryReadError(DownwellError):
+#     """OS-level memory read failed."""
+#
+#     def __init__(self, addr: int, os_error: int | None = None) -> None:
+#         self.addr = addr
+#         self.os_error = os_error
+#         detail = f"(os error {os_error})" if os_error is not None else ""
+#         super().__init__(f"memory read failed at 0x{addr:x} {detail}")
 
 
 class FieldResolveError(DownwellError):

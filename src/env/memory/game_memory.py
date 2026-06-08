@@ -18,21 +18,21 @@ import ctypes.wintypes as wt
 from dataclasses import dataclass
 import struct
 import sys
-from typing import Any
+from typing import cast
 
 from loguru import logger
 from PyMemoryEditor import OpenProcess
 from PyMemoryEditor.process.abstract import AbstractProcess
 from PyMemoryEditor.process.errors import ProcessNotFoundError
+from src.consts import PROC_NAME
 from src.utils.exceptions import FieldResolveError
-from src.utils.exceptions import MemoryReadError
 
 from .game_ptrs import PLAYER_PTR
 
 
-PROC_QUERY_INFO = 0x0400
-PROC_VM_READ = 0x0010
-WIN_FALSE = 0
+PROCESS_QUERY_INFORMATION = 0x0400
+PROCESS_VM_READ = 0x0010
+WIN_FALSE = wt.BOOL(0)
 
 
 @dataclass
@@ -54,21 +54,23 @@ class AttachedMemory:
     Active validated connection to a running process.
 
     Invariant: both ``_proc`` and ``_module_base`` are guaranteed valid for the lifetime of this object.
-    Do not use standalone; use ``MemoryReader.attach()``.
+    Do not use standalone; use ``attach()``.
     """
 
     _proc: AbstractProcess
     _module_base: int
 
     def _read_ptr(self, addr: int) -> int:
+        # PyMemoryEditor does not raise on bad reads, returns garbage on failure
         data: bytes = self._proc.read_process_memory(addr, bytes, 4)
-        logger.trace(f"reading ptr {struct.unpack_from('<I', data)[0]}")
+        logger.trace(f"reading ptr {struct.unpack_from('<I', data)[0]:#x}")
         return struct.unpack_from("<I", data)[0]
 
     def _read_typed(self, addr: int, type_str: str) -> float:
         size = 4 if type_str == "float" else 8
-        logger.trace(f"reading typed {self._proc.read_process_memory(addr, float, size)} ({size})")
-        return self._proc.read_process_memory(addr, float, size)
+        value: float = self._proc.read_process_memory(addr, float, size)
+        logger.trace(f"reading typed {value} ({size}b)")
+        return value
 
     def _get_ptr_addr(self, base: int, offsets: list[int]) -> int:
         addr = self._read_ptr(base)
@@ -79,27 +81,24 @@ class AttachedMemory:
         return addr + offsets[-1]
 
     def _get_field(self, field: str, module_base: int) -> float:
-        entry: Any = PLAYER_PTR[field]
-        type_str: str = entry["type"]
+        entry: dict[str, object] = PLAYER_PTR[field]
+        type_str: str = str(entry["type"])
 
         if "bases" in entry:
-            bases: list[int] = entry["bases"]
-            offsets_list: list[list[int]] = entry["offsets"]
+            bases: list[int] = cast("list[int]", entry["bases"])
+            offsets_list: list[list[int]] = cast("list[list[int]]", entry["offsets"])
         else:
-            bases: list[int] = [entry["base"]]
-            offsets_list: list[list[int]] = [entry["offsets"]]
+            bases = [cast("int", entry["base"])]
+            offsets_list = [cast("list[int]", entry["offsets"])]
 
         for base, offsets in zip(bases, offsets_list, strict=False):
-            try:
-                addr = self._get_ptr_addr(module_base + base, offsets)
-                return self._read_typed(addr, type_str)
-            except MemoryReadError:
-                continue
+            addr = self._get_ptr_addr(module_base + base, offsets)
+            return self._read_typed(addr, type_str)
 
-        raise FieldResolveError
+        raise FieldResolveError(field)
 
-    def read(self) -> MemoryState | None:
-        """Sample current game state. Raises ``MemoryReadError`` if process dies."""
+    def read(self) -> MemoryState:
+        """Sample current game state. Raises ``FieldResolveError`` if all chains fail."""
         # no guards needed; if we have AttachedMemory it means we're attached
         return MemoryState(
             ypos=float(self._get_field("ypos", self._module_base)),
@@ -118,10 +117,10 @@ class AttachedMemory:
 
 
 def _resolve_module_base_win(pid: int, proc_name: str) -> int | None:
-    if sys.platform != "win32":
+    if sys.platform != "win32":  # added due to type checking
         return None
 
-    handle = ctypes.windll.kernel32.OpenProcess(PROC_QUERY_INFO | PROC_VM_READ, WIN_FALSE, pid)
+    handle = ctypes.windll.kernel32.OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, WIN_FALSE, pid)
     if not handle:
         return None
 
@@ -162,8 +161,7 @@ def _resolve_module_base(proc: AbstractProcess, proc_name: str) -> int | None:
     return None
 
 
-# TODO @Sincos: consts.py (for proc_name)
-def attach(proc_name: str = "Downwell.exe") -> AttachedMemory | None:
+def attach(proc_name: str = PROC_NAME) -> AttachedMemory | None:
     """
     Attempt to find and attach to a process.
 
