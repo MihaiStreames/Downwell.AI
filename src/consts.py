@@ -1,4 +1,4 @@
-# Copyright 2023 MihaiStreames
+# Copyright 2023 MihaiStreames, UnderNowhere
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,9 +16,10 @@
 from typing import Final
 
 
-### Game constants ###
+### Process constants ###
 
-PROC_NAME: Final[str] = "Downwell.exe"
+PROCESS_NAME: Final[str] = "Downwell.exe"
+WINDOW_TITLE: Final[str] = "Downwell"
 
 ### Actions ###
 
@@ -42,3 +43,11 @@ ACTION_KEYS: Final[dict[int, set[str]]] = {
 
 RESET_SEQ: Final[list[str]] = ["esc", "right", "space", "space"]
 RETRY_SEQ: Final[list[str]] = ["space", "space", "space"]
+
+### Capture constants ###
+
+CROP_LEFT_RATIO: Final[float] = 0.28
+CROP_RIGHT_RATIO: Final[float] = 0.72
+
+IMAGE_WIDTH: Final[int] = 84
+IMAGE_HEIGHT: Final[int] = 142

@@ -1,4 +1,4 @@
-# Copyright 2023 MihaiStreames
+# Copyright 2023 MihaiStreames, UnderNowhere
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,26 +13,29 @@
 # limitations under the License.
 
 
-import ctypes
-import ctypes.wintypes as wt
+import sys
+
+
+if sys.platform == "win32":
+    import ctypes
+    import ctypes.wintypes as wt
+
+    PROCESS_QUERY_INFORMATION = 0x0400
+    PROCESS_VM_READ = 0x0010
+    WIN_FALSE = wt.BOOL(0)
+
 from dataclasses import dataclass
 import struct
-import sys
 from typing import cast
 
 from loguru import logger
 from PyMemoryEditor import OpenProcess
 from PyMemoryEditor.process.abstract import AbstractProcess
 from PyMemoryEditor.process.errors import ProcessNotFoundError
-from src.consts import PROC_NAME
+from src.consts import PROCESS_NAME
 from src.utils.exceptions import FieldResolveError
 
 from .game_ptrs import PLAYER_PTR
-
-
-PROCESS_QUERY_INFORMATION = 0x0400
-PROCESS_VM_READ = 0x0010
-WIN_FALSE = wt.BOOL(0)
 
 
 @dataclass
@@ -116,52 +119,44 @@ class AttachedMemory:
         self._proc.close()
 
 
-def _resolve_module_base_win(pid: int, proc_name: str) -> int | None:
-    if sys.platform != "win32":  # added due to type checking
+if sys.platform == "linux":
+
+    def _resolve_module_base(proc: AbstractProcess, proc_name: str) -> int | None:
+        for region in proc.get_memory_regions():
+            path: bytes = region["struct"].Path or b""
+            if proc_name.encode() in path:
+                return region["address"]
+
         return None
 
-    handle = ctypes.windll.kernel32.OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, WIN_FALSE, pid)
-    if not handle:
+
+if sys.platform == "win32":
+
+    def _resolve_module_base(proc: AbstractProcess, proc_name: str) -> int | None:
+        handle = ctypes.windll.kernel32.OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, WIN_FALSE, proc.pid)
+        if not handle:
+            return None
+
+        try:
+            name_buf = ctypes.create_unicode_buffer(512)
+
+            modules = (wt.HMODULE * 1024)()
+            needed = wt.DWORD()
+
+            ctypes.windll.psapi.EnumProcessModules(handle, modules, ctypes.sizeof(modules), ctypes.byref(needed))
+            count = needed.value // ctypes.sizeof(wt.HMODULE)
+
+            for mod in modules[:count]:
+                ctypes.windll.psapi.GetModuleBaseNameW(handle, mod, name_buf, 260)
+                if proc_name.lower() == name_buf.value.lower():
+                    return mod
+        finally:
+            ctypes.windll.kernel32.CloseHandle(handle)
+
         return None
 
-    try:
-        name_buf = ctypes.create_unicode_buffer(512)
 
-        modules = (wt.HMODULE * 1024)()
-        needed = wt.DWORD()
-
-        ctypes.windll.psapi.EnumProcessModules(handle, modules, ctypes.sizeof(modules), ctypes.byref(needed))
-        count = needed.value // ctypes.sizeof(wt.HMODULE)
-
-        for mod in modules[:count]:
-            ctypes.windll.psapi.GetModuleBaseNameW(handle, mod, name_buf, 260)
-            if proc_name.lower() == name_buf.value.lower():
-                return mod
-    finally:
-        ctypes.windll.kernel32.CloseHandle(handle)
-
-    return None
-
-
-def _resolve_module_base_linux(proc: AbstractProcess, proc_name: str) -> int | None:
-    for region in proc.get_memory_regions():
-        path: bytes = region["struct"].Path or b""
-        if proc_name.encode() in path:
-            return region["address"]
-
-    return None
-
-
-def _resolve_module_base(proc: AbstractProcess, proc_name: str) -> int | None:
-    if sys.platform == "win32":
-        return _resolve_module_base_win(proc.pid, proc_name)
-    if sys.platform == "linux":
-        return _resolve_module_base_linux(proc, proc_name)
-
-    return None
-
-
-def attach(proc_name: str = PROC_NAME) -> AttachedMemory | None:
+def attach(proc_name: str = PROCESS_NAME) -> AttachedMemory | None:
     """
     Attempt to find and attach to a process.
 
