@@ -51,3 +51,10 @@ CROP_RIGHT_RATIO: Final[float] = 0.72
 
 IMAGE_WIDTH: Final[int] = 84
 IMAGE_HEIGHT: Final[int] = 142
+
+### Observation ###
+
+RAM_DIM: Final[int] = 7
+FRAME_STACK: Final[int] = 4
+ACTION_BUFFER_LEN: Final[int] = 4
+ACTION_BUFFER_DIM: Final[int] = ACTION_BUFFER_LEN * len(ACTION_KEYS)

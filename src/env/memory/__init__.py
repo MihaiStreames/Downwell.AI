@@ -14,6 +14,6 @@
 
 
 from .game_memory import attach
+from .game_memory import MemoryState
 
-
-__all__ = ["attach"]
+__all__ = ["attach", "MemoryState"]
