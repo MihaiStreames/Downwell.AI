@@ -12,6 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
+
+
+if sys.platform != "linux":
+    msg = "x11_capture is only supported on Linux"
+    raise RuntimeError(msg)
+
 
 from typing import Any
 
@@ -71,7 +78,7 @@ class X11Capture(BaseCapture):
         self.__height: int = 0
 
     def grab(self) -> np.ndarray | None:
-        """Grab an image (grayscale), or None if window not found."""
+        """Grab an image (grayscale), or ``None`` if window not found."""
         if self.__window is None:
             result = _find_window(self.__display, self.__atom, self.__title)
             if result is None:

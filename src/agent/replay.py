@@ -13,21 +13,21 @@
 # limitations under the License.
 
 
-import torch
 import numpy as np
-
-
+from src.consts import ACTION_BUFFER_DIM
 from src.consts import FRAME_STACK
 from src.consts import IMAGE_HEIGHT
 from src.consts import IMAGE_WIDTH
 from src.consts import RAM_DIM
-from src.consts import ACTION_BUFFER_DIM
+import torch
 
 
 class ReplayBuffer:
+    """Pre-allocated circular replay buffer for DQN transitions."""
+
     def __init__(self, capacity: int, device: torch.device | None = None) -> None:
-        self.capacity = capacity
         self.__device = device or torch.device("cpu")
+        self.__rng = np.random.default_rng()
 
         self.__imgs = np.zeros((capacity, FRAME_STACK, IMAGE_HEIGHT, IMAGE_WIDTH), dtype=np.uint8)
         self.__rams = np.zeros((capacity, RAM_DIM), dtype=np.float32)
@@ -37,7 +37,30 @@ class ReplayBuffer:
         self.__dones = np.zeros(capacity, dtype=bool)
 
         self.__pos = 0
+
+        self.capacity = capacity
         self.size = 0
+
+    def add(self, *, img: np.ndarray, ram: np.ndarray, acts_buf: np.ndarray, action: int, reward: float, done: bool) -> None:
+        """Store one transition in the replay buffer.
+
+        Note:
+        -----
+        - ``img`` must be ``(FRAME_STACK, H, W)`` uint8.
+        - ``ram`` must be ``(RAM_DIM,)`` float32.
+        - ``acts_buf`` must be ``(ACTION_BUFFER_DIM,)`` float32.
+        """
+        i = self.__pos
+
+        self.__imgs[i] = img
+        self.__rams[i] = ram
+        self.__acts_buf[i] = acts_buf
+        self.__actions[i] = action
+        self.__rewards[i] = reward
+        self.__dones[i] = done
+        self.__pos = (i + 1) % self.capacity
+
+        self.size = min(self.size + 1, self.capacity)
 
     def sample(
         self, batch_size: int
@@ -55,16 +78,16 @@ class ReplayBuffer:
         ]
         | None
     ):
-
+        """Sample a random batch from the replay buffer. Returns ``None`` if fewer than ``batch_size + 1`` transitions stored."""
         available = self.size - 1
         if available < batch_size:
             return None
 
         if self.size < self.capacity:
-            idx = np.random.randint(0, available, size=batch_size)
+            idx = self.__rng.integers(0, available, size=batch_size)
         else:
             exclude = (self.__pos - 1 + self.capacity) % self.capacity
-            raw = np.random.randint(0, self.capacity - 1, size=batch_size)
+            raw = self.__rng.integers(0, self.capacity - 1, size=batch_size)
             idx = np.where(raw >= exclude, raw + 1, raw) % self.capacity
 
         nidx = (idx + 1) % self.capacity
@@ -85,16 +108,3 @@ class ReplayBuffer:
         dones = torch.from_numpy(self.__dones[idx]).to(dev, non_blocking=True)
 
         return (imgs, next_imgs, rams, next_rams, acts, next_acts, actions, rewards, dones)
-
-    def add(self, img: np.ndarray, ram: np.ndarray, acts_buf: np.ndarray, action: int, reward: float, done: bool) -> None:
-        i = self.__pos
-
-        self.__imgs[i] = img
-        self.__rams[i] = ram
-        self.__acts_buf[i] = acts_buf
-        self.__actions[i] = action
-        self.__rewards[i] = reward
-        self.__dones[i] = done
-        self.__pos = (i + 1) % self.capacity
-
-        self.size = min(self.size + 1, self.capacity)

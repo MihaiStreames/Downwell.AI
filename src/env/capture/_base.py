@@ -24,4 +24,4 @@ class BaseCapture(ABC):
 
     @abstractmethod
     def grab(self) -> np.ndarray | None:
-        """Grab an image (grayscale), or None if window not found."""
+        """Grab an image (grayscale), or ``None`` if window not found."""

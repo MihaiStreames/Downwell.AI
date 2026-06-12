@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
+
+
+if sys.platform != "win32":
+    msg = "dxcam_capture is only supported on Windows"
+    raise RuntimeError(msg)
 
 import ctypes
 import ctypes.wintypes as wt
@@ -91,7 +97,7 @@ class DXCamCapture(BaseCapture):
         return _CapturedRegion(rect, frame)
 
     def grab(self) -> np.ndarray | None:
-        """Grab an image (grayscale), or None if window not found."""
+        """Grab an image (grayscale), or ``None`` if window not found."""
         region = self._as_region()
         if region is None:
             return None

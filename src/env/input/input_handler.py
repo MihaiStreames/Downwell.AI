@@ -38,7 +38,7 @@ class InputHandler:
     """
     Cross-platform diff-based held-key input handler.
 
-    Splits are based on the platform (``win32`` vs ``linux``), where ``win32`` uses ``pydirectinput`` and ``linux`` uses ``pynput``.
+    Splits are based on the platform (``win32`` or ``linux``), where ``win32`` uses ``pydirectinput`` and ``linux`` uses ``pynput``.
     Also provides a way to play sequences (in order) of keys via ``play_sequence(keys: list[str])``.
     """
 

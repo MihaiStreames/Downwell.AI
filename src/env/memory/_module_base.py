@@ -21,7 +21,7 @@ from PyMemoryEditor.process.abstract import AbstractProcess
 if sys.platform == "linux":
 
     def resolve_module_base(proc: AbstractProcess, proc_name: str) -> int | None:
-        """Resolve the base address of ``proc_name``'s main module, or None if not found."""
+        """Resolve the base address of ``proc_name``'s main module, or ``None`` if not found."""
         for region in proc.get_memory_regions():
             # skip non-readable regions
             if b"r" not in region["struct"].Privileges:
@@ -46,7 +46,7 @@ if sys.platform == "win32":
     _WIN_FALSE: wt.BOOL = wt.BOOL(0)
 
     def resolve_module_base(proc: AbstractProcess, proc_name: str) -> int | None:
-        """Resolve the base address of ``proc_name``'s main module, or None if not found."""
+        """Resolve the base address of ``proc_name``'s main module, or ``None`` if not found."""
         handle = _kernel32.OpenProcess(_PROCESS_QUERY_INFORMATION | _PROCESS_VM_READ, _WIN_FALSE, proc.pid)
         if not handle:
             return None

@@ -13,7 +13,8 @@
 # limitations under the License.
 
 
-from .game_memory import attach
 from .game_memory import MemoryState
+from .game_memory import attach
 
-__all__ = ["attach", "MemoryState"]
+
+__all__ = ["MemoryState", "attach"]

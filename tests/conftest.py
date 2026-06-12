@@ -1,13 +1,16 @@
 import numpy as np
-
-# from src.env.memory import MemoryState
 from src.consts import ACTION_BUFFER_DIM
-
-# from src.consts import CENTER_XPOS
 from src.consts import FRAME_STACK
 from src.consts import IMAGE_HEIGHT
 from src.consts import IMAGE_WIDTH
 from src.consts import RAM_DIM
+
+
+_rng = np.random.default_rng()  # new way of handling random number generation
+
+
+# from src.env.memory import MemoryState
+# from src.consts import CENTER_XPOS
 
 
 # def make_state(**kwargs) -> MemoryState:
@@ -17,12 +20,12 @@ from src.consts import RAM_DIM
 
 
 def rand_img() -> np.ndarray:
-    return np.random.randint(0, 256, (FRAME_STACK, IMAGE_HEIGHT, IMAGE_WIDTH), dtype=np.uint8)
+    return _rng.integers(0, 256, (FRAME_STACK, IMAGE_HEIGHT, IMAGE_WIDTH), dtype=np.uint8)
 
 
 def rand_ram() -> np.ndarray:
-    return np.random.rand(RAM_DIM).astype(np.float32)
+    return _rng.random(RAM_DIM).astype(np.float32)
 
 
 def rand_acts() -> np.ndarray:
-    return np.random.rand(ACTION_BUFFER_DIM).astype(np.float32)
+    return _rng.random(ACTION_BUFFER_DIM).astype(np.float32)
